@@ -23,6 +23,18 @@ class LocalClient:
     ref: NodeReference
     data_size: int
     exp_data: DataContainer
+    valid_response: bool = True
+    available: bool = True
+
+def deadline_callable(self_obj, selected_clients: List[LocalClient], deadline, training_start_time) -> bool:
+    if time.time() > training_start_time + deadline:
+        self_obj.logger.warning('Deadline has passed!')
+        # Notify clients to stop
+        for client in selected_clients:
+            client.valid_response = False
+            self_obj.message_async(client.ref, Client.stop_training)
+        # Break out waiting loop
+        return True
 
 
 def cb_factory(future: torch.Future, method, *args, **kwargs):
@@ -33,6 +45,9 @@ class Federator(Node):
     # clients: List[NodeReference] = []
     num_rounds: int
     exp_data: DataContainer
+    callables = {
+        deadline_callable: True
+    }
 
     def __init__(self, id: int, rank: int, world_size: int, config: Config):
         super().__init__(id, rank, world_size, config)
@@ -184,30 +199,25 @@ class Federator(Node):
 
         last_model = self.get_nn_parameters()
         for client in selected_clients:
+            client.valid_response = True
             self.message(client.ref, Client.update_nn_parameters, last_model)
 
-        # Actual training calls
         client_weights = {}
         client_sizes = {}
-        # pbar = tqdm(selected_clients)
-        # for client in pbar:
-
-        # Client training
         training_futures: List[torch.Future] = []
-
-
-        # def cb_factory(future: torch.Future, method, client, client_weights, client_sizes, num_epochs, name):
-        #     future.then(lambda x: method(x, client, client_weights, client_sizes, num_epochs, client.name))
 
         def training_cb(fut: torch.Future, client_ref: LocalClient, client_weights, client_sizes, num_epochs):
             train_loss, weights, accuracy, test_loss, round_duration, train_duration, test_duration = fut.wait()
             self.logger.info(f'Training callback for client {client_ref.name} with accuracy={accuracy}')
-            client_weights[client_ref.name] = weights
-            client_data_size = self.message(client_ref.ref, Client.get_client_datasize)
-            client_sizes[client_ref.name] = client_data_size
-            client_ref.exp_data.append(
-                ClientRecord(id, train_duration, test_duration, round_duration, num_epochs, 0, accuracy, train_loss,
-                             test_loss))
+            if client_ref.valid_response:
+                client_weights[client_ref.name] = weights
+                client_data_size = self.message(client_ref.ref, Client.get_client_datasize)
+                client_sizes[client_ref.name] = client_data_size
+                client_ref.exp_data.append(
+                    ClientRecord(id, train_duration, test_duration, round_duration, num_epochs, 0, accuracy, train_loss,
+                                 test_loss))
+            else:
+                self.logger.info(f'Omitting client response because it is marked invalid!')
 
         for client in selected_clients:
             future = self.message_async(client.ref, Client.exec_round, num_epochs)
@@ -215,31 +225,26 @@ class Federator(Node):
             self.logger.info(f'Request sent to client {client.name}')
             training_futures.append(future)
 
-        def all_futures_done(futures: List[torch.Future])->bool:
+        def all_futures_done(futures: List[torch.Future]) -> bool:
             return all(map(lambda x: x.done(), futures))
 
-        while not all_futures_done(training_futures):
+        deadline = 3
+        training_start_time = time.time()
+        stop_loop = False
+        while not all_futures_done(training_futures) and not stop_loop:
+            for c in [x for x, active in self.callables.items() if active]:
+                stop_loop = c(self, selected_clients, deadline, training_start_time)
+                if stop_loop:
+                    break
+
             time.sleep(0.1)
             self.logger.info('')
-            # self.logger.info(f'Waiting for other clients')
 
-        self.logger.info(f'Continue with rest [1]')      
-        time.sleep(3)
-
-        # for client in selected_clients:
-        #     # pbar.set_description(f'[Round {id:>3}] Running clients')
-        #     train_loss, weights, accuracy, test_loss, round_duration, train_duration, test_duration = self.message(client.ref, Client.exec_round, num_epochs)
-        #     client_weights[client.name] = weights
-        #     client_data_size = self.message(client.ref, Client.get_client_datasize)
-        #     client_sizes[client.name] = client_data_size
-        #     client.exp_data.append(ClientRecord(id, train_duration, test_duration, round_duration, num_epochs, 0, accuracy, train_loss, test_loss))
-        #     # self.logger.info(f'[Round {id:>3}] Client {client} has a accuracy of {accuracy}, train loss={train_loss}, test loss={test_loss},datasize={client_data_size}')
-
-        # updated_model = FedAvg(client_weights, client_sizes)
-        updated_model = self.aggregation_method(client_weights, client_sizes)
-        # updated_model = average_nn_parameters_simple(list(client_weights.values()))
-        self.update_nn_parameters(updated_model)
-
+        if len(client_weights):
+            updated_model = self.aggregation_method(client_weights, client_sizes)
+            self.update_nn_parameters(updated_model)
+        else:
+            self.logger.warning(f'Skipping the aggregation step due to missing client weights! Number of client weights = {len(client_weights)}')
         test_accuracy, test_loss = self.test(self.net)
         self.logger.info(f'[Round {id:>3}] Federator has a accuracy of {test_accuracy} and loss={test_loss}')
 

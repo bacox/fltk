@@ -11,6 +11,7 @@ from fltk.util.config import Config
 
 class Client(Node):
     running = False
+    terminate_training = False
     def __init__(self, id: int, rank: int, world_size: int, config: Config):
         super().__init__(id, rank, world_size, config)
 
@@ -24,7 +25,6 @@ class Client(Node):
 
     def remote_registration(self):
         self.logger.info('Sending registration')
-        self.message('federator', 'ping', 'new_sender', be_weird=True)
         self.message('federator', 'register_client', self.id, self.rank)
         self.running = True
         self._event_loop()
@@ -68,7 +68,9 @@ class Client(Node):
                     '[%s] [%d, %5d] loss: %.3f' % (self.id, num_epochs, i, running_loss / self.config.log_interval))
                 final_running_loss = running_loss / self.config.log_interval
                 running_loss = 0.0
-                # break
+
+            if self.terminate_training:
+                break
 
         end_time = time.time()
         duration = end_time - start_time
@@ -94,6 +96,8 @@ class Client(Node):
         loss = 0.0
         with torch.no_grad():
             for (images, labels) in self.dataset.get_test_loader():
+                if self.terminate_training:
+                    break
                 images, labels = images.to(self.device), labels.to(self.device)
 
                 outputs = self.net(images)
@@ -107,7 +111,10 @@ class Client(Node):
 
                 loss += self.loss_function(outputs, labels).item()
         loss /= len(self.dataset.get_test_loader().dataset)
-        accuracy = 100.0 * correct / total
+        if total:
+            accuracy = 100.0 * correct / total
+        else:
+            accuracy = 0
         # confusion_mat = confusion_matrix(targets_, pred_)
         # accuracy_per_class = confusion_mat.diagonal() / confusion_mat.sum(1)
         #
@@ -121,10 +128,13 @@ class Client(Node):
     def get_client_datasize(self):
         return len(self.dataset.get_train_sampler())
 
+    def stop_training(self):
+        self.terminate_training = True
+        self.logger.info('Got a call to stop training')
+
     def exec_round(self, num_epochs: int) -> Tuple[Any, Any, Any, Any, float, float, float]:
-
         start = time.time()
-
+        self.terminate_training = False
         loss, weights = self.train(num_epochs)
         time_mark_between = time.time()
         accuracy, test_loss = self.test()
