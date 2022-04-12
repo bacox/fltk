@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datasets.leaf.pickle_dataset import PickleDataset
+from fltk.datasets.leaf.pickle_dataset import PickleDataset
 from fltk.datasets import DistDataset
 from torch.utils.data import DataLoader
 from fltk.samplers import get_sampler
-from util.config import Config
+from fltk.util.config import Config
 
 
 class DistShakespeareDataset(DistDataset):

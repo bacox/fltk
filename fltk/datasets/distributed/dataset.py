@@ -6,7 +6,7 @@ import numpy
 
 from fltk.util.arguments import Arguments
 from fltk.util.log import getLogger
-from util.config import Config
+from fltk.util.config import Config
 
 
 class DistDataset:
