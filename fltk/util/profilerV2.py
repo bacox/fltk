@@ -21,13 +21,14 @@ class Profiler:
 
     batch_idx = 0
 
-    def __init__(self, rounds: int, feature_layers_ends: int):
+    def __init__(self, rounds: int, feature_layers_ends: int, active: bool = False):
         self.round = rounds
         self.ff = np.zeros(self.round)
         self.fb = np.zeros(self.round)
         self.cf = np.zeros(self.round)
         self.cb = np.zeros(self.round)
         self.feature_layers_ends = feature_layers_ends
+        self.active = active
 
     def attach(self, module: Module):
         def get_children(model: torch.nn.Module):

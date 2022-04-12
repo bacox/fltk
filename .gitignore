@@ -149,3 +149,8 @@ docker-compose.yml
 refactor-notes.md
 experiments/**/exps/*
 *.test.py
+
+*.pkl
+fltk/datasets/shakespeare/meta
+fltk/datasets/shakespeare/data
+fltk/datasets/fedavg

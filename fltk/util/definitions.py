@@ -35,6 +35,7 @@ class Dataset(Enum):
     cifar100 = 'cifar100'
     fashion_mnist = 'fashion-mnist'
     mnist = 'mnist'
+    shakespeare = 'shakespeare'
 
 class LogLevel(Enum):
     CRITICAL = 50
@@ -62,3 +63,4 @@ class Nets(Enum):
     fashion_mnist_cnn = "FashionMNISTCNN"
     fashion_mnist_resnet = "FashionMNISTResNet"
     mnist_cnn = 'MNISTCNN'
+    shakespeare_rnn = 'ShakespeareRNN'

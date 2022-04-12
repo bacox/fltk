@@ -6,6 +6,7 @@ import numpy
 
 from fltk.util.arguments import Arguments
 from fltk.util.log import getLogger
+from util.config import Config
 
 
 class DistDataset:
@@ -17,7 +18,7 @@ class DistDataset:
 	train_loader = None
 	test_loader = None
 	logger = getLogger(__name__)
-	def __init__(self, args: Arguments):
+	def __init__(self, args: Config):
 		self.args = args
 		# self.train_dataset = self.load_train_dataset()
 		# self.test_dataset = self.load_test_dataset()

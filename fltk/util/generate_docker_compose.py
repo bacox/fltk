@@ -247,7 +247,7 @@ def generate_dev(num_clients = 2, medium=False):
     for key, item in enumerate(system_template['services']['fl_server']['environment']):
         if item == 'WORLD_SIZE={world_size}':
             system_template['services']['fl_server']['environment'][key] = item.format(world_size=world_size)
-    cpu_idx = 2
+    cpu_idx = 1
     for client_id in range(1, num_clients + 1):
         if not medium:
             client_type = 'fast'
@@ -562,6 +562,8 @@ def run(name, num_clients = None, medium=False):
         exp_dict[name](num_clients, medium)
     else:
         exp_dict[name]()
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate docker-compose file')

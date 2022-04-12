@@ -2,6 +2,7 @@ from fltk.datasets.distributed.mnist import DistMNISTDataset
 from fltk.datasets.distributed.cifar10 import DistCIFAR10Dataset
 from fltk.datasets.distributed.cifar100 import DistCIFAR100Dataset
 from fltk.datasets.distributed.fashion_mnist import DistFashionMNISTDataset
+from fltk.datasets.distributed.shakespeare import DistShakespeareDataset
 from fltk.util.definitions import Dataset
 
 def available_datasets():
@@ -9,7 +10,8 @@ def available_datasets():
         Dataset.cifar10: DistCIFAR10Dataset,
         Dataset.cifar100: DistCIFAR100Dataset,
         Dataset.fashion_mnist: DistFashionMNISTDataset,
-        Dataset.mnist: DistMNISTDataset
+        Dataset.mnist: DistMNISTDataset,
+        Dataset.shakespeare: DistShakespeareDataset
     }
 
 def get_dataset(name: Dataset):

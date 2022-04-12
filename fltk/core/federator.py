@@ -5,7 +5,7 @@ from typing import List, Union
 
 import torch
 from tqdm import tqdm
-
+import numpy as np
 from fltk.core.client import Client
 from fltk.core.node import Node
 from fltk.datasets.loader_util import get_dataset
@@ -15,6 +15,8 @@ from dataclasses import dataclass
 
 from fltk.util.data_container import DataContainer, FederatorRecord, ClientRecord
 from fltk.strategy import get_aggregation
+from fltk.strategy.algorithms.deadline import deadline_callable
+from fltk.strategy.algorithms.offloading import offloading_callable
 
 NodeReference = Union[Node, str]
 @dataclass
@@ -26,16 +28,6 @@ class LocalClient:
     valid_response: bool = True
     available: bool = True
 
-def deadline_callable(self_obj, selected_clients: List[LocalClient], deadline, training_start_time) -> bool:
-    if time.time() > training_start_time + deadline:
-        self_obj.logger.warning('Deadline has passed!')
-        # Notify clients to stop
-        for client in selected_clients:
-            client.valid_response = False
-            self_obj.message_async(client.ref, Client.stop_training)
-        # Break out waiting loop
-        return True
-
 
 def cb_factory(future: torch.Future, method, *args, **kwargs):
     future.then(lambda x: method(x, *args, **kwargs))
@@ -46,8 +38,13 @@ class Federator(Node):
     num_rounds: int
     exp_data: DataContainer
     callables = {
-        deadline_callable: True
+        deadline_callable: {'active': False, 'state': {}},
+        offloading_callable: {'active': False, 'state': {}}
     }
+    # callables = [
+    #     {'callable': deadline_callable, 'active': False, 'state': {}},
+    #     {'callable': offloading_callable, 'active': True, 'state': {}}
+    # ]
 
     def __init__(self, id: int, rank: int, world_size: int, config: Config):
         super().__init__(id, rank, world_size, config)
@@ -59,7 +56,10 @@ class Federator(Node):
             prefix_text = f'_r{config.replication_id}'
         config.output_path = Path(config.output_path) / f'{config.experiment_prefix}{prefix_text}'
         self.exp_data = DataContainer('federator', config.output_path, FederatorRecord, config.save_data_append)
+        Config.ToYamlFile(config, config.output_path / 'config.yaml')
         self.aggregation_method = get_aggregation(config.aggregation)
+        self.selected_clients: List[LocalClient] = []
+        self.performance_data = {}
 
 
 
@@ -86,6 +86,8 @@ class Federator(Node):
         for client in self.clients:
             self.message(client.ref, Client.stop_client)
 
+    def save_performance_metric(self, client_id, metric):
+        self.performance_data[client_id] = metric
 
     def _num_clients_online(self) -> int:
         return len(self.clients)
@@ -190,15 +192,17 @@ class Federator(Node):
         return accuracy, loss
 
     def exec_round(self, id: int):
+        self.logger.info('='*20)
+        self.logger.info(f'= Starting round {id} =')
+        self.logger.info('='*20)
         start_time = time.time()
         num_epochs = self.config.epochs
 
         # Client selection
-        selected_clients: List[LocalClient]
-        selected_clients = random_selection(self.clients, self.config.clients_per_round)
+        self.selected_clients = random_selection(self.clients, self.config.clients_per_round)
 
         last_model = self.get_nn_parameters()
-        for client in selected_clients:
+        for client in self.selected_clients:
             client.valid_response = True
             self.message(client.ref, Client.update_nn_parameters, last_model)
 
@@ -219,7 +223,7 @@ class Federator(Node):
             else:
                 self.logger.info(f'Omitting client response because it is marked invalid!')
 
-        for client in selected_clients:
+        for client in self.selected_clients:
             future = self.message_async(client.ref, Client.exec_round, num_epochs)
             cb_factory(future, training_cb, client, client_weights, client_sizes, num_epochs)
             self.logger.info(f'Request sent to client {client.name}')
@@ -232,24 +236,24 @@ class Federator(Node):
         training_start_time = time.time()
         stop_loop = False
         while not all_futures_done(training_futures) and not stop_loop:
-            for c in [x for x, active in self.callables.items() if active]:
-                stop_loop = c(self, selected_clients, deadline, training_start_time)
+            for (c, c_data) in [(x, c_data) for x, c_data in self.callables.items() if c_data['active']]:
+                stop_loop = c(self, c_data['state'], deadline, training_start_time)
                 if stop_loop:
                     break
-
             time.sleep(0.1)
-            self.logger.info('')
 
         if len(client_weights):
             updated_model = self.aggregation_method(client_weights, client_sizes)
             self.update_nn_parameters(updated_model)
         else:
             self.logger.warning(f'Skipping the aggregation step due to missing client weights! Number of client weights = {len(client_weights)}')
-        test_accuracy, test_loss = self.test(self.net)
+        test_accuracy, test_loss = self.test(self.nets.selected())
         self.logger.info(f'[Round {id:>3}] Federator has a accuracy of {test_accuracy} and loss={test_loss}')
 
         end_time = time.time()
         duration = end_time - start_time
-        self.exp_data.append(FederatorRecord(len(selected_clients), id, duration, test_loss, test_accuracy))
+        self.exp_data.append(FederatorRecord(len(self.selected_clients), id, duration, test_loss, test_accuracy))
         self.logger.info(f'[Round {id:>3}] Round duration is {duration} seconds')
-
+        self.performance_data = {}
+        for c_data in self.callables.values():
+            c_data['state'] = {}

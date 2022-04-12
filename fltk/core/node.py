@@ -4,7 +4,7 @@ from typing import Callable, Any
 import torch
 from torch.distributed import rpc
 from fltk.datasets.loader_util import get_dataset
-from fltk.nets import get_net
+from fltk.nets import get_net_by_name
 from fltk.util.config import Config
 from fltk.util.log import getLogger
 
@@ -23,6 +23,29 @@ def _remote_method_direct(method, other_node: str, *args, **kwargs):
     return rpc.rpc_sync(other_node, method, args=args, kwargs=kwargs)
 
 
+class Nets(dict):
+    __default__ = '__default__'
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.default = self.__default__
+
+    def select(self, key: str):
+        self.default = key
+
+    def reset(self):
+        self.default = self.__default__
+
+    def selected(self):
+        return self.get(self.default)
+
+    def remove_model(self, key):
+        self.pop(key)
+
+    def other_keys(self):
+        return [x for x in self.keys() if x != self.__default__]
+
+
 class Node:
     """
     Implementation of any participating node.
@@ -35,19 +58,21 @@ class Node:
     distributed: bool = True
     cuda: bool = False
     finished_init: bool = False
-    device = torch.device("cpu")
-    net: Any
+    # net: Any
+    nets: Nets
     dataset: Any
     logger = getLogger(__name__)
 
     def __init__(self, id: int, rank: int, world_size: int, config: Config):
         self.config = config
+        self.device = torch.device("cpu")
         self.id = id
         self.rank = rank
         self.world_size = world_size
         self.real_time = config.real_time
         global global_vars
         global_vars['self'] = self
+        self.nets = Nets()
         self._config(config)
 
     def _config(self, config: Config):
@@ -102,27 +127,28 @@ class Node:
             self.logger.info("Configure device for CPU")
             return torch.device("cpu")
 
-    def set_net(self, net):
+    def set_net(self, net, key: str = '__default__'):
         """
         Update the local parameters of self.net with net.
         This method also makes sure that the parameters are configured for the correct device (CPU or GPU/CUDA)
         :param net:
         """
-        self.net = net
-        self.net.to(self.device)
+        self.nets[key] = net
+        # self.net = net
+        self.nets[key].to(self.device)
 
-    def get_nn_parameters(self):
+    def get_nn_parameters(self, key: str = '__default__'):
         """
         Return the DNN parameters.
         """
-        return self.net.state_dict()
+        return self.nets[key].state_dict()
 
     def load_default_model(self):
         """
         Load a model from default model file.
         This is used to ensure consistent default model behavior.
         """
-        model_class = get_net(self.config.net_name)
+        model_class = get_net_by_name(self.config.net_name)
         default_model_path = os.path.join(self.config.get_default_model_folder_path(), model_class.__name__ + ".model")
 
         return self.load_model_from_file(default_model_path)
@@ -132,7 +158,7 @@ class Node:
         Load a model from a file.
         :param model_file_path: string
         """
-        model_class = get_net(self.config.net_name)
+        model_class = get_net_by_name(self.config.net_name)
         model = model_class()
 
         if os.path.exists(model_file_path):
@@ -147,18 +173,14 @@ class Node:
         return model
 
 
-    def update_nn_parameters(self, new_params, is_offloaded_model = False):
+    def update_nn_parameters(self, new_params, key:str = '__default__'):
         """
         Update the NN's parameters.
 
         :param new_params: New weights for the neural network
         :type new_params: dict
         """
-        if is_offloaded_model:
-            pass
-            # self.offloaded_net.load_state_dict(copy.deepcopy(new_params), strict=True)
-        else:
-            self.net.load_state_dict(copy.deepcopy(new_params), strict=True)
+        self.nets[key].load_state_dict(copy.deepcopy(new_params), strict=True)
 
     def message(self, other_node: str, method: Callable, *args, **kwargs) -> torch.Future:
         """
@@ -187,6 +209,30 @@ class Node:
         future = torch.futures.Future()
         future.set_result(method(other_node, *args, **kwargs))
         return future
+
+    def freeze_layers(self, net, until: int):
+        def get_children(model: torch.nn.Module):
+            children = list(model.children())
+            flatt_children = []
+            if children == []:
+                return model
+            else:
+                for child in children:
+                    try:
+                        flatt_children.extend(get_children(child))
+                    except TypeError:
+                        flatt_children.append(get_children(child))
+            return flatt_children
+
+        for idx, layer in enumerate(get_children(net)):
+            if idx < until:
+                self.logger.debug(f'[{idx}] Freezing layer: {layer}')
+                for param in layer.parameters():
+                    param.requires_grad = False
+
+    def unfreeze_layers(self, key: str = '__default__'):
+        for param in self.nets[key].parameters():
+            param.requires_grad = True
 
     def ping(self, sender: str):
         """

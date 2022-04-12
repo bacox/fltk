@@ -5,6 +5,7 @@ from .fashion_mnist_resnet import FashionMNISTResNet
 from .cifar_10_resnet import Cifar10ResNet
 from .cifar_100_vgg import Cifar100VGG
 from .mnist_cnn import MNIST_CNN
+from .shakespeare_rnn import RNN_Shakespeare
 from ..util.definitions import Nets
 
 
@@ -17,10 +18,11 @@ def available_nets():
         Nets.fashion_mnist_cnn: FashionMNISTCNN,
         Nets.fashion_mnist_resnet: FashionMNISTResNet,
         Nets.mnist_cnn: MNIST_CNN,
+        Nets.shakespeare_rnn: RNN_Shakespeare
 
     }
 
-def get_net(name: Nets):
+def get_net_by_name(name: Nets):
     return available_nets()[name]
 
 
@@ -33,5 +35,6 @@ def get_net_split_point(name: Nets):
         Nets.fashion_mnist_cnn: 7,
         Nets.fashion_mnist_resnet: 7,
         Nets.mnist_cnn: 2,
+        Nets.shakespeare_rnn: 2
     }
     return nets_split_point[name]

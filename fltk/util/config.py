@@ -1,9 +1,9 @@
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, Field
 from enum import Enum, EnumMeta
-from pathlib import Path
+from pathlib import Path, PosixPath
 from typing import Type
-
+import pathlib
 import torch
 import yaml
 from fltk.util.log import getLogger
@@ -14,7 +14,7 @@ from fltk.util.definitions import Dataset, Nets, DataSampler, Optimizations, Log
 @dataclass
 class Config:
     # optimizer: Optimizations
-    batch_size: int = 1
+    batch_size: int = 16
     test_batch_size: int = 1000
     rounds: int = 2
     epochs: int = 1
@@ -118,3 +118,17 @@ class Config:
             for k, v in content.items():
                 getLogger(__name__).debug(f'Inserting key "{k}" into config')
             return cls(**content)
+
+    @classmethod
+    def ToYamlFile(cls, config, path: Path):
+        getLogger(__name__).debug(f'Saving config to {path.absolute()}')
+        with open(path, mode='w+') as file:
+            dict_data = copy.deepcopy(config.__dict__)
+            enum_fields = [x for x in config.__dataclass_fields__.items() if
+                           isinstance(x[1].type, Enum) or isinstance(x[1].type, EnumMeta)]
+            for name, field in enum_fields:
+                dict_data[name] = config.__getattribute__(name).value
+            path_fields = [x for x in config.__dataclass_fields__.keys() if isinstance(config.__getattribute__(x), Path)]
+            for path_field in path_fields:
+                dict_data[path_field] = str(config.__getattribute__(path_field))
+            yaml.dump(dict_data, file)
