@@ -60,6 +60,8 @@ class Client(Node):
         self.logger.info('Exiting node')
 
     def train(self, num_epochs: int, use_profiler = True):
+        if not self.real_time:
+            use_profiler = False
         start_time = time.time()
 
         running_loss = 0.0
@@ -75,7 +77,7 @@ class Client(Node):
         profiling_size = 100
         p_data = np.zeros(profiling_size)
         iter = 0
-        p = Profiler(profiling_size, net_split_point - 1, use_profiler and False)
+        p = Profiler(profiling_size, net_split_point - 1, use_profiler)
         network = self.nets.selected()
         if p.active:
             p.attach(network)
