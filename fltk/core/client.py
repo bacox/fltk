@@ -59,18 +59,16 @@ class Client(Node):
             time.sleep(0.1)
         self.logger.info('Exiting node')
 
-    def train(self, num_epochs: int, use_profiler = True):
+    def train(self, round_id: int, num_epochs: int, use_profiler = True):
         if not self.real_time:
             use_profiler = False
         start_time = time.time()
 
         running_loss = 0.0
         final_running_loss = 0.0
-        if self.distributed:
-            self.dataset.train_sampler.set_epoch(num_epochs)
 
         has_send_metric = False
-        number_of_training_samples = len(self.dataset.get_train_loader())
+        number_of_training_samples = len(self.dataset.get_train_loader()) * num_epochs
 
         # Init profiler
         net_split_point = get_net_split_point(self.config.net_name)
@@ -81,67 +79,69 @@ class Client(Node):
         network = self.nets.selected()
         if p.active:
             p.attach(network)
-        # self.logger.info(f'{self.id}: Number of training samples: {number_of_training_samples}')
+        self.logger.info(f'{self.id}: Number of training samples: {number_of_training_samples}')
+        for epoch in range(num_epochs):
+            if self.distributed:
+                self.dataset.train_sampler.set_epoch(round_id + epoch)
+            for i, (inputs, labels) in enumerate(self.dataset.get_train_loader(), 0):
+                s_time = time.time()
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
 
-        for i, (inputs, labels) in enumerate(self.dataset.get_train_loader(), 0):
-            s_time = time.time()
-            inputs, labels = inputs.to(self.device), labels.to(self.device)
+                # zero the parameter gradients
+                self.optimizer.zero_grad()
+                if p.active:
+                    p.signal_forward_start()
 
-            # zero the parameter gradients
-            self.optimizer.zero_grad()
-            if p.active:
-                p.signal_forward_start()
+                # Calculate prediction
+                outputs = network(inputs)
+                # Determine loss
+                loss = self.loss_function(outputs, labels)
 
-            # Calculate prediction
-            outputs = network(inputs)
-            # Determine loss
-            loss = self.loss_function(outputs, labels)
+                if p.active:
+                    # p.signal_backward_start()
+                    p.signal_forward_end()
+                    p.signal_backwards_start()
+                # Correct for errors
+                loss.backward()
+                self.optimizer.step()
+                if p.active:
+                    p.signal_backwards_end()
+                    p.step()
 
-            if p.active:
-                # p.signal_backward_start()
-                p.signal_forward_end()
-                p.signal_backwards_start()
-            # Correct for errors
-            loss.backward()
-            self.optimizer.step()
-            if p.active:
-                p.signal_backwards_end()
-                p.step()
+                running_loss += loss.item()
+                e_time = time.time() - s_time
+                # This is here for debugging. can be removed later
+                if p.active:
+                    p_data[iter] = e_time
+                    iter += 1
 
-            running_loss += loss.item()
-            e_time = time.time() - s_time
-            # This is here for debugging. can be removed later
-            if p.active:
-                p_data[iter] = e_time
-                iter += 1
+                # Mark logging update step
+                if i % self.config.log_interval == 0:
+                    self.logger.info(
+                        '[%s] [%d, %5d] loss: %.3f' % (self.id, num_epochs, i, running_loss / self.config.log_interval))
+                    final_running_loss = running_loss / self.config.log_interval
+                    running_loss = 0.0
 
-            # Mark logging update step
-            if i % self.config.log_interval == 0:
-                self.logger.info(
-                    '[%s] [%d, %5d] loss: %.3f' % (self.id, num_epochs, i, running_loss / self.config.log_interval))
-                final_running_loss = running_loss / self.config.log_interval
-                running_loss = 0.0
+                if p.active:
+                    if i == profiling_size - 1:
+                        p.active = False
+                        p.remove_all_handles()
+                        profiler_data = p.aggregate_values()
+                        self.logger.info(f'Profiler data: {profiler_data}')
+                        self.logger.info(f'Profiler data (sum): {np.sum(profiler_data)} and {e_time} and {np.mean(p_data)}')
+                        self.logger.info(f'Profiler data (%): {np.abs(np.mean(p_data) - np.sum(profiler_data)) / np.sum(profiler_data)}')
+                        self.message_async('federator', 'save_performance_metric', self.id, profiler_data)
 
-            if p.active:
-                if i == profiling_size - 1:
-                    p.active = False
-                    p.remove_all_handles()
-                    profiler_data = p.aggregate_values()
-                    self.logger.info(f'Profiler data: {profiler_data}')
-                    self.logger.info(f'Profiler data (sum): {np.sum(profiler_data)} and {e_time} and {np.mean(p_data)}')
-                    self.logger.info(f'Profiler data (%): {np.abs(np.mean(p_data) - np.sum(profiler_data)) / np.sum(profiler_data)}')
-                    self.message_async('federator', 'save_performance_metric', self.id, profiler_data)
+                if self.terminate_training:
+                    break
 
-            if self.terminate_training:
-                break
-
-            if self.offloading_decision:
-                # Do not check when for now, just execute
-                self.logger.info(f'{self.id} is offloading to {self.offloading_decision["node-id"]}')
-                self.message_async(self.offloading_decision['node-id'], Client.receive_offloading_request, self.id, self.get_nn_parameters())
-                self.freeze_layers(network, net_split_point)
-                self.message_async(self.offloading_decision['node-id'], Client.unlock)
-                self.offloading_decision = {}
+                if self.offloading_decision:
+                    # Do not check when for now, just execute
+                    self.logger.info(f'{self.id} is offloading to {self.offloading_decision["node-id"]}')
+                    self.message_async(self.offloading_decision['node-id'], Client.receive_offloading_request, self.id, self.get_nn_parameters())
+                    self.freeze_layers(network, net_split_point)
+                    self.message_async(self.offloading_decision['node-id'], Client.unlock)
+                    self.offloading_decision = {}
 
 
         end_time = time.time()
@@ -214,10 +214,10 @@ class Client(Node):
         self.terminate_training = True
         self.logger.info('Got a call to stop training')
 
-    def exec_round(self, num_epochs: int) -> Tuple[Any, Any, Any, Any, float, float, float]:
+    def exec_round(self, round_id: int, num_epochs: int) -> Tuple[Any, Any, Any, Any, float, float, float]:
         start = time.time()
         self.terminate_training = False
-        loss, weights = self.train(num_epochs)
+        loss, weights = self.train(round_id, num_epochs)
         time_mark_between = time.time()
         accuracy, test_loss = self.test()
 
@@ -234,7 +234,7 @@ class Client(Node):
             other_client_id = self.nets.other_keys()[0]
             self.logger.info(f'I need to train the offloading model from client {other_client_id} as well!')
             self.nets.select(other_client_id)
-            loss, weights = self.train(num_epochs, False)
+            loss, weights = self.train(round_id, num_epochs, False)
             # time_mark_between = time.time()
             accuracy, test_loss = self.test()
             self.logger.info('Stopping training of alternative model')

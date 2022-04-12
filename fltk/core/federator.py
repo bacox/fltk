@@ -41,10 +41,6 @@ class Federator(Node):
         deadline_callable: {'active': False, 'state': {}},
         offloading_callable: {'active': False, 'state': {}}
     }
-    # callables = [
-    #     {'callable': deadline_callable, 'active': False, 'state': {}},
-    #     {'callable': offloading_callable, 'active': True, 'state': {}}
-    # ]
 
     def __init__(self, id: int, rank: int, world_size: int, config: Config):
         super().__init__(id, rank, world_size, config)
@@ -224,7 +220,7 @@ class Federator(Node):
                 self.logger.info(f'Omitting client response because it is marked invalid!')
 
         for client in self.selected_clients:
-            future = self.message_async(client.ref, Client.exec_round, num_epochs)
+            future = self.message_async(client.ref, Client.exec_round, id, num_epochs)
             cb_factory(future, training_cb, client, client_weights, client_sizes, num_epochs)
             self.logger.info(f'Request sent to client {client.name}')
             training_futures.append(future)
