@@ -34,28 +34,45 @@ Important notes:
 Structure with important folders and files explained:
 ```
 project
-├── configs
-│     └── experiment.yaml                     # Example of an experiment configuration
+├── experiments
 ├── deploy                                    # Templates for automatic deployment  
-│     └── templates
-│          ├── client_stub_default.yml
-│          ├── client_stub_medium.yml
-│          ├── client_stub_slow.yml
+│     └── docker                              # Describes how a systems is deployed using docker containers
+│          ├── stub_default.yml
 │          └── system_stub.yml                # Describes the federator and the network
 ├── fltk                                      # Source code
+│     ├── core                                # Different dataset definitions
+│     ├── datasets                            # Different dataset definitions
+│     ├── nets                                # Available networks
+│     ├── samplers                            # Different types of data samplers to create non-IID distributions
+│     ├── schedulers                          # Learning Rate Schedulers
+│     ├── strategy                            # Client selection and model aggregation algorithms
+│     ├── util                                # Various utility functions
 │     ├── datasets                            # Different dataset definitions
 │     │    ├── data_distribution              # Datasets with distributed sampler
 │     │    └── distributed                    # "regular" datasets for centralized use
-│     ├── nets                                # Available networks
-│     ├── schedulers                          # Learning Rate Schedulers
-│     ├── strategy                            # Client selection and model aggregation algorithms
-│     └── util
-│          └── generate_docker_compose.py     # Generates a docker-compose.yml for a containerized run
+│     └── __main__.py                         # Main package entrypoint
 ├── Dockerfile                                # Dockerfile to run in containers
 ├── LICENSE
 ├── README.md
 └── setup.py
 ```
+
+## Execution modes
+Federatd Learning experiments can be set up in various ways (Simulation, Emulation, or fully distributed). Not all have the same requirements and thus some setup are more suited then others depending on the experiment.
+
+### Simulation
+With the method as single machine is used to execute all the different nodes in the system.
+The execution is done in a sequential manner, i.e. first node 1 is executed, then node 2, and so on. One of the upsides of this option is the ability to use GPU acceleration for the computations.
+
+### Docker-Compose (Emulation)
+With systems like docker we can emulate a federated learning system on a single machine. Each node is allocated to one or more CPU cores and executed in an isolated container. This allows for real-time experiments where timing is important and where the execution of clients have effect on eachother. Docker also allows for containers to be limited by CPU speed, RAM, and network properties.
+
+### Real distributed (Google Cloud)
+In this case, the code is deployed natively on a machine, for example a cluster. 
+This is the closest real-world approximation when experimenting with Federated Learning systems. This allows for real-time experiments where timing is important and where the execution of clients have effect on eachother. A downside of this method is the shear number of machines needed to run an experiment. Additionally the compute speed and other hardware spcifications are more difficult to limit.
+
+### Hybrid
+The Docker (Compose) and real-distributed method can be mixed in a hybrid system. For example two servers can run a set of docker containers that are linked to each other. Similarly, a set of docker images on a server can participate in a system with real distributed machines. 
 
 ## Models
 
@@ -66,12 +83,15 @@ project
 * Fashion-MNIST-CNN
 * Fashion-MNIST-ResNet
 * Reddit-LSTM
+* Shakespeare-LSTM
 
 ## Datasets
 
 * Cifar10
 * Cifar100
 * Fashion-MNIST
+* MNIST
+* Shakespeare
 
 ## Prerequisites
 

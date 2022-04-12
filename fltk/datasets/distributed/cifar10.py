@@ -3,8 +3,9 @@ from torchvision import transforms
 from torch.utils.data import DataLoader, DistributedSampler
 
 from fltk.datasets.distributed.dataset import DistDataset
-from fltk.strategy.data_samplers import get_sampler
 import logging
+
+from fltk.samplers import get_sampler
 
 
 class DistCIFAR10Dataset(DistDataset):
@@ -16,7 +17,8 @@ class DistCIFAR10Dataset(DistDataset):
 
     def init_train_dataset(self):
         dist_loader_text = "distributed" if self.args.get_distributed() else ""
-        self.get_args().get_logger().debug(f"Loading '{dist_loader_text}' CIFAR10 train data")
+        self.logger.debug(f"Loading '{dist_loader_text}' CIFAR10 train data")
+        # self.get_args().get_logger().debug(f"Loading '{dist_loader_text}' CIFAR10 train data")
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         transform = transforms.Compose([
             transforms.RandomHorizontalFlip(),
@@ -27,11 +29,13 @@ class DistCIFAR10Dataset(DistDataset):
         self.train_dataset = datasets.CIFAR10(root=self.get_args().get_data_path(), train=True, download=True,
                                          transform=transform)
         self.train_sampler = get_sampler(self.train_dataset, self.args)
-        self.train_loader = DataLoader(self.train_dataset, batch_size=16, sampler=self.train_sampler)
-        logging.info("this client gets {} samples".format(len(self.train_sampler)))
+        self.train_loader = DataLoader(self.train_dataset, batch_size=self.args.batch_size, sampler=self.train_sampler)
+        self.logger.info("this client gets {} samples".format(len(self.train_sampler)))
+        # logging.info("this client gets {} samples".format(len(self.train_sampler)))
 
     def init_test_dataset(self):
-        self.get_args().get_logger().debug("Loading CIFAR10 test data")
+        self.logger.debug("Loading CIFAR10 test data")
+        # self.get_args().get_logger().debug("Loading CIFAR10 test data")
 
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         transform = transforms.Compose([
@@ -41,4 +45,4 @@ class DistCIFAR10Dataset(DistDataset):
         self.test_dataset = datasets.CIFAR10(root=self.get_args().get_data_path(), train=False, download=True,
                                         transform=transform)
         self.test_sampler = get_sampler(self.test_dataset, self.args)
-        self.test_loader = DataLoader(self.test_dataset, batch_size=16, sampler=self.test_sampler)
+        self.test_loader = DataLoader(self.test_dataset, batch_size=self.args.test_batch_size, sampler=self.test_sampler)

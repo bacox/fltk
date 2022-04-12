@@ -1,21 +1,18 @@
 from abc import abstractmethod
-from torch.utils.data import DataLoader
-from torch.utils.data import TensorDataset
-import torch
-import numpy
-
-from fltk.util.arguments import Arguments
+from fltk.util.log import getLogger
+from fltk.util.config import Config
 
 
 class DistDataset:
-
 	train_sampler = None
 	test_sampler = None
 	train_dataset = None
 	test_dataset = None
 	train_loader = None
 	test_loader = None
-	def __init__(self, args: Arguments):
+	logger = getLogger(__name__)
+
+	def __init__(self, args: Config):
 		self.args = args
 		# self.train_dataset = self.load_train_dataset()
 		# self.test_dataset = self.load_test_dataset()

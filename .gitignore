@@ -1,3 +1,8 @@
+*.csv
+*.json
+*.png
+*.pdf
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -140,3 +145,12 @@ docker_data
 .idea
 *.tmp.txt
 docker-compose.yml
+
+refactor-notes.md
+experiments/**/exps/*
+*.test.py
+
+*.pkl
+fltk/datasets/shakespeare/meta
+fltk/datasets/shakespeare/data
+fltk/datasets/fedavg
