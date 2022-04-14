@@ -37,6 +37,7 @@ class Dataset(Enum):
     mnist = 'mnist'
     shakespeare = 'shakespeare'
 
+
 class LogLevel(Enum):
     CRITICAL = 50
     FATAL = CRITICAL
@@ -46,6 +47,7 @@ class LogLevel(Enum):
     INFO = 20
     DEBUG = 10
     NOTSET = 0
+
 
 @unique
 class Aggregations(Enum):
@@ -64,3 +66,11 @@ class Nets(Enum):
     fashion_mnist_resnet = "FashionMNISTResNet"
     mnist_cnn = 'MNISTCNN'
     shakespeare_rnn = 'ShakespeareRNN'
+
+
+@unique
+class Algorithm(Enum):
+    vanilla = 'vanilla'
+    tifl = 'tifl'
+    deadline = 'deadline'
+    offloading = 'offloading'

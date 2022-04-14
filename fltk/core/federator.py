@@ -17,6 +17,9 @@ from fltk.util.data_container import DataContainer, FederatorRecord, ClientRecor
 from fltk.strategy import get_aggregation
 from fltk.strategy.algorithms.deadline import deadline_callable
 from fltk.strategy.algorithms.offloading import offloading_callable
+from strategy.algorithms import get_algorithm
+from strategy.algorithms.Alg import FederatedAlgorithm
+from strategy.client_selection.tifl import create_tiers, tifl_init, tier_selection
 
 NodeReference = Union[Node, str]
 @dataclass
@@ -37,16 +40,28 @@ class Federator(Node):
     # clients: List[NodeReference] = []
     num_rounds: int
     exp_data: DataContainer
-    callables = {
-        deadline_callable: {'active': False, 'state': {}},
-        offloading_callable: {'active': False, 'state': {}}
-    }
+    # callables = {
+    #     deadline_callable: {'active': False, 'state': {}},
+    #     offloading_callable: {'active': False, 'state': {}}
+    # }
+
+    algorithm: FederatedAlgorithm = None
+    algorithm_state = {}
+
 
     def __init__(self, id: int, rank: int, world_size: int, config: Config):
         super().__init__(id, rank, world_size, config)
         self.loss_function = self.config.get_loss_function()()
         self.num_rounds = config.rounds
         self.config = config
+        self.algorithm = get_algorithm(config.algorithm_name)()
+        self.logger.info(f'Loaded the algorithm: "{self.algorithm.name}"')
+        # @TODO: Thi can be done much cleaner!
+        self.algorithm.init_alg(self, self.algorithm_state, config)
+        # self.tifl_state = {
+        #     'tiers': [],
+        #     'selected_tier_id': ''
+        # }
         prefix_text = ''
         if config.replication_id:
             prefix_text = f'_r{config.replication_id}'
@@ -113,6 +128,32 @@ class Federator(Node):
         for client in self.clients:
             client.data_size = self.message(client.ref, Client.get_client_datasize)
 
+    # def client_profiling(self, ):
+    #     '''
+    #     Tifl implementation for client profiling. Required to create client tiers
+    #     Step:
+    #     1. Profile for x amount of local updates on each client
+    #     2. Client respond with estimated throughput
+    #     3. Create tiers based on the number of tiers parameter
+    #     :return:
+    #     '''
+    #
+    #     # Replace with algorithm hook!
+    #     training_futures = []
+    #     num_local_updates = 300
+    #     for client in self.clients:
+    #         fut = [client.name, self.message_async(client.ref, Client.profile_offline, num_local_updates)]
+    #         training_futures.append(fut)
+    #
+    #     profiling_data = []
+    #     for fut in training_futures:
+    #         profiling_data.append((fut[0], fut[1].wait()))
+    #
+    #     tier_data = create_tiers(profiling_data, 3, self.config.rounds)
+    #     self.tifl_state['tiers'] = tier_data
+    #     self.logger.info('Finished TiFL client profiling')
+
+
     def run(self):
         # Load dataset with world size 2 to load the whole dataset.
         # Caused by the fact that the dataloader subtracts 1 from the world size to exclude the federator by default.
@@ -128,6 +169,11 @@ class Federator(Node):
         self.client_load_data()
         self.get_client_data_sizes()
         self.clients_ready()
+
+        # Replace with algorithm hook!
+        self.algorithm.hook_post_startup(self, self.algorithm_state)
+        # self.client_profiling()
+
         # self.logger.info('Sleeping before starting communication')
         # time.sleep(20)
         for communication_round in range(self.config.rounds):
@@ -187,15 +233,31 @@ class Federator(Node):
         self.logger.info(f'Test duration is {duration} seconds')
         return accuracy, loss
 
-    def exec_round(self, id: int):
+    def exec_round(self, round_id: int):
         self.logger.info('='*20)
-        self.logger.info(f'= Starting round {id} =')
+        self.logger.info(f'= Starting round {round_id} =')
         self.logger.info('='*20)
         start_time = time.time()
         num_epochs = self.config.epochs
 
+        self.algorithm.hook_client_selection(self, self.algorithm_state, round_id)
+
+        # TiFL Client selection
+        # if False:
+        #     self.client_pool = self.clients
+        # else:
+        #     # Replace with algorithm hook!
+        #     # TiFL implementation
+        #     I = len(self.tifl_state)
+        #     self.tifl_state['tiers'], selected_tier = tier_selection(self.tifl_state['tiers'], id, I)
+        #     # self.tifl_state['selected_tier_id'] = selected_tier[0]
+        #     self.tifl_state['selected_tier_id'] = selected_tier.id
+        #     # tier_client_ids = [x for x in selected_tier[3]]
+        #     client_pool = [x for x in self.clients if x.name in selected_tier.client_ids]
+        #     # End of TiFL implementation!
+
         # Client selection
-        self.selected_clients = random_selection(self.clients, self.config.clients_per_round)
+        self.selected_clients = random_selection(self.client_pool, self.config.clients_per_round)
 
         last_model = self.get_nn_parameters()
         for client in self.selected_clients:
@@ -214,13 +276,13 @@ class Federator(Node):
                 client_data_size = self.message(client_ref.ref, Client.get_client_datasize)
                 client_sizes[client_ref.name] = client_data_size
                 client_ref.exp_data.append(
-                    ClientRecord(id, train_duration, test_duration, round_duration, num_epochs, 0, accuracy, train_loss,
+                    ClientRecord(round_id, train_duration, test_duration, round_duration, num_epochs, 0, accuracy, train_loss,
                                  test_loss))
             else:
                 self.logger.info(f'Omitting client response because it is marked invalid!')
 
         for client in self.selected_clients:
-            future = self.message_async(client.ref, Client.exec_round, id, num_epochs)
+            future = self.message_async(client.ref, Client.exec_round, round_id, num_epochs)
             cb_factory(future, training_cb, client, client_weights, client_sizes, num_epochs)
             self.logger.info(f'Request sent to client {client.name}')
             training_futures.append(future)
@@ -232,10 +294,13 @@ class Federator(Node):
         training_start_time = time.time()
         stop_loop = False
         while not all_futures_done(training_futures) and not stop_loop:
-            for (c, c_data) in [(x, c_data) for x, c_data in self.callables.items() if c_data['active']]:
-                stop_loop = c(self, c_data['state'], deadline, training_start_time)
-                if stop_loop:
-                    break
+            stop_loop = self.algorithm.hook_training(self, self.algorithm_state, deadline, training_start_time)
+            if stop_loop:
+                break
+            # for (c, c_data) in [(x, c_data) for x, c_data in self.callables.items() if c_data['active']]:
+            #     stop_loop = c(self, c_data['state'], deadline, training_start_time)
+            #     if stop_loop:
+            #         break
             time.sleep(0.1)
 
         if len(client_weights):
@@ -244,12 +309,22 @@ class Federator(Node):
         else:
             self.logger.warning(f'Skipping the aggregation step due to missing client weights! Number of client weights = {len(client_weights)}')
         test_accuracy, test_loss = self.test(self.nets.selected())
-        self.logger.info(f'[Round {id:>3}] Federator has a accuracy of {test_accuracy} and loss={test_loss}')
+        self.logger.info(f'[Round {round_id:>3}] Federator has a accuracy of {test_accuracy} and loss={test_loss}')
+
+        self.algorithm.hook_post_eval(self, self.algorithm_state, test_accuracy)
+        # TiFL implementation
+        # if True:
+        #
+        #     selected_tier = [x for x in self.tifl_state['tiers'] if x.id == self.tifl_state['selected_tier_id']][0]
+        #     # selected_tier = [x for x in self.tifl_state['tiers'] if x[0] == self.tifl_state['selected_tier_id']][0]
+        #     selected_tier.accuracy = test_accuracy
+        #     # selected_tier[1] = test_accuracy
+        #     self.logger.info(f'After test eval tier data-> {self.tifl_state}')
+
+        # End of TiFL implementation
 
         end_time = time.time()
         duration = end_time - start_time
-        self.exp_data.append(FederatorRecord(len(self.selected_clients), id, duration, test_loss, test_accuracy))
-        self.logger.info(f'[Round {id:>3}] Round duration is {duration} seconds')
+        self.exp_data.append(FederatorRecord(len(self.selected_clients), round_id, duration, test_loss, test_accuracy))
+        self.logger.info(f'[Round {round_id:>3}] Round duration is {duration} seconds')
         self.performance_data = {}
-        for c_data in self.callables.values():
-            c_data['state'] = {}

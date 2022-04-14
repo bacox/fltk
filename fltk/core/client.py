@@ -117,7 +117,7 @@ class Client(Node):
 
                 # Mark logging update step
                 if i % self.config.log_interval == 0:
-                    self.logger.info(
+                    self.logger.debug(
                         '[%s] [%d, %5d] loss: %.3f' % (self.id, num_epochs, i, running_loss / self.config.log_interval))
                     final_running_loss = running_loss / self.config.log_interval
                     running_loss = 0.0
@@ -197,6 +197,31 @@ class Client(Node):
         duration = end_time - start_time
         # self.logger.info(f'Test duration is {duration} seconds')
         return accuracy, loss
+
+    def profile_offline(self, num_updates):
+        print(f'Start client profiling of {self.id}')
+        start_time = time.time()
+        number_of_training_samples = len(self.dataset.get_train_loader())
+        network = self.nets.selected()
+        for i, (inputs, labels) in enumerate(self.dataset.get_train_loader(), 0):
+            inputs, labels = inputs.to(self.device), labels.to(self.device)
+            # zero the parameter gradients
+            self.optimizer.zero_grad()
+            # Calculate prediction
+            outputs = network(inputs)
+            # Determine loss
+            loss = self.loss_function(outputs, labels)
+            # Correct for errors
+            loss.backward()
+            self.optimizer.step()
+            if i >= num_updates:
+                break
+        end_time = time.time()
+        duration = end_time - start_time
+        num_updates = min(i, num_updates)
+        print(f'CLient {self.id}, ({duration=} / {num_updates=}) * {number_of_training_samples=}')
+        estimated_full_duration = (duration / num_updates) * number_of_training_samples
+        return estimated_full_duration
 
     def get_client_datasize(self):
         return len(self.dataset.get_train_sampler())

@@ -8,7 +8,7 @@ import torch
 import yaml
 from fltk.util.log import getLogger
 
-from fltk.util.definitions import Dataset, Nets, DataSampler, Optimizations, LogLevel, Aggregations
+from fltk.util.definitions import Dataset, Nets, DataSampler, Optimizations, LogLevel, Aggregations, Algorithm
 
 
 @dataclass
@@ -37,7 +37,7 @@ class Config:
     }
     loss_function = torch.nn.CrossEntropyLoss
     # Enum
-    log_level: LogLevel = LogLevel.DEBUG
+    log_level: LogLevel = LogLevel.INFO
 
     num_clients: int = 10
     clients_per_round: int = 2
@@ -67,6 +67,13 @@ class Config:
     # This could be useful when a system is likely to crash midway an experiment
     save_data_append: bool = False
     output_path: Path = Path('output_test_2')
+
+    algorithm_name: Algorithm = Algorithm.vanilla
+
+    # TiFL specific configuration
+    tifl_I: int = None # cycle when to update the tier probabilities
+    tifl_n_tiers: int = 2 # Number of tiers used by the TiFL algorithm
+
 
     def __init__(self, **kwargs) -> None:
         enum_fields = [x for x in self.__dataclass_fields__.items() if isinstance(x[1].type, Enum) or isinstance(x[1].type, EnumMeta)]
