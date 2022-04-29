@@ -37,7 +37,7 @@ class Config:
     }
     loss_function = torch.nn.CrossEntropyLoss
     # Enum
-    log_level: LogLevel = LogLevel.INFO
+    log_level: LogLevel = LogLevel.DEBUG
 
     num_clients: int = 10
     clients_per_round: int = 2
@@ -70,9 +70,14 @@ class Config:
 
     algorithm_name: Algorithm = Algorithm.vanilla
 
+    ## Algorithm specific parameters:
+    # All parameters specific to an algorithm are prefixed with the name of the algorithm
     # TiFL specific configuration
     tifl_I: int = None # cycle when to update the tier probabilities
     tifl_n_tiers: int = 2 # Number of tiers used by the TiFL algorithm
+
+    # Parameters for deadline based algorithms such as Deadline and Offloading
+    deadline_time: float = 0
 
 
     def __init__(self, **kwargs) -> None:

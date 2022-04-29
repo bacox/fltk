@@ -31,12 +31,14 @@ class Nets(dict):
         self.default = self.__default__
 
     def select(self, key: str):
+        print(f'Setting default key to {key}')
         self.default = key
 
     def reset(self):
         self.default = self.__default__
 
     def selected(self):
+
         return self.get(self.default)
 
     def remove_model(self, key):
@@ -90,11 +92,20 @@ class Node:
             config.world_size = world_size
         self.logger.info(f'world size = {config.world_size} with rank={config.rank}')
         self.dataset = get_dataset(config.dataset_name)(config)
+        self.labels_dist = []
+        for _, label in self.dataset.get_train_loader():
+            self.labels_dist.append(label)
+        # self.labels_dist = torch.unique(torch.stack(self.labels_dist), return_counts=True)
+        self.labels_dist = torch.unique(torch.cat(self.labels_dist, dim=0), return_counts=True)
         self.finished_init = True
         self.logger.info('Done with init')
 
     def is_ready(self):
         return self.finished_init
+
+    def get_class_distribution(self):
+        self.dataset.get_train_loader()
+        pass
 
     @staticmethod
     def _receive(method: Callable, sender: str, *args, **kwargs):
@@ -180,6 +191,10 @@ class Node:
         :param new_params: New weights for the neural network
         :type new_params: dict
         """
+        if key != '__default__':
+            print("Model's state_dict:")
+            for param_tensor in copy.deepcopy(new_params):
+                print(param_tensor, "\t", copy.deepcopy(new_params)[param_tensor].size())
         self.nets[key].load_state_dict(copy.deepcopy(new_params), strict=True)
 
     def message(self, other_node: str, method: Callable, *args, **kwargs) -> torch.Future:

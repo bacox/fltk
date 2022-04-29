@@ -17,9 +17,9 @@ from fltk.util.data_container import DataContainer, FederatorRecord, ClientRecor
 from fltk.strategy import get_aggregation
 from fltk.strategy.algorithms.deadline import deadline_callable
 from fltk.strategy.algorithms.offloading import offloading_callable
-from strategy.algorithms import get_algorithm
-from strategy.algorithms.Alg import FederatedAlgorithm
-from strategy.client_selection.tifl import create_tiers, tifl_init, tier_selection
+from fltk.strategy.algorithms import get_algorithm
+from fltk.strategy.algorithms.Alg import FederatedAlgorithm
+from fltk.strategy.client_selection.tifl import create_tiers, tifl_init, tier_selection
 
 NodeReference = Union[Node, str]
 @dataclass
@@ -98,6 +98,18 @@ class Federator(Node):
             self.message(client.ref, Client.stop_client)
 
     def save_performance_metric(self, client_id, metric):
+        '''
+        We assume the following structure for the performance data:
+        {
+            pm: performance_metric,
+            ps: profiling_size,
+            bs: batch_size,
+            rl: remaining_local_updates
+        }
+        :param client_id:
+        :param metric:
+        :return:
+        '''
         self.performance_data[client_id] = metric
 
     def _num_clients_online(self) -> int:
@@ -189,8 +201,10 @@ class Federator(Node):
             client.exp_data.save()
 
     def client_load_data(self):
+        futures = []
         for client in self.clients:
-            self.message(client.ref, Client.init_dataloader)
+            futures.append(self.message_async(client.ref, Client.init_dataloader))
+        [x.wait() for x in futures]
 
     def set_tau_eff(self):
         total = sum(client.data_size for client in self.clients)
@@ -257,6 +271,7 @@ class Federator(Node):
         #     # End of TiFL implementation!
 
         # Client selection
+        self.client_pool = self.clients
         self.selected_clients = random_selection(self.client_pool, self.config.clients_per_round)
 
         last_model = self.get_nn_parameters()
@@ -290,11 +305,10 @@ class Federator(Node):
         def all_futures_done(futures: List[torch.Future]) -> bool:
             return all(map(lambda x: x.done(), futures))
 
-        deadline = 3
         training_start_time = time.time()
         stop_loop = False
         while not all_futures_done(training_futures) and not stop_loop:
-            stop_loop = self.algorithm.hook_training(self, self.algorithm_state, deadline, training_start_time)
+            stop_loop = self.algorithm.hook_training(self, self.algorithm_state, training_start_time)
             if stop_loop:
                 break
             # for (c, c_data) in [(x, c_data) for x, c_data in self.callables.items() if c_data['active']]:
@@ -328,3 +342,4 @@ class Federator(Node):
         self.exp_data.append(FederatorRecord(len(self.selected_clients), round_id, duration, test_loss, test_accuracy))
         self.logger.info(f'[Round {round_id:>3}] Round duration is {duration} seconds')
         self.performance_data = {}
+        self.algorithm.hook_post_training(self, self.algorithm_state)

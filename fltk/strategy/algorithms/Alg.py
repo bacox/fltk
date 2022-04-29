@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from util.config import Config
+from fltk.util.config import Config
 
 
 class FederatedAlgorithm(ABC):
@@ -41,7 +41,7 @@ class FederatedAlgorithm(ABC):
         pass
 
     @abstractmethod
-    def hook_training(self, federator_state, alg_state: dict, deadline, training_start_time) -> bool:
+    def hook_training(self, federator_state, alg_state: dict, training_start_time) -> bool:
         '''
         Hook call during the training loop
         :return:

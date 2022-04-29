@@ -1,7 +1,7 @@
-from core.client import Client
-from strategy.algorithms.Alg import FederatedAlgorithm
-from strategy.client_selection.tifl import create_tiers, tier_selection
-from util.config import Config
+from fltk.core.client import Client
+from fltk.strategy.algorithms.Alg import FederatedAlgorithm
+from fltk.strategy.client_selection.tifl import create_tiers, tier_selection
+from fltk.util.config import Config
 
 
 class TiFL(FederatedAlgorithm):
@@ -40,7 +40,7 @@ class TiFL(FederatedAlgorithm):
         selected_tier.accuracy = test_accuracy
         federator_state.logger.info(f'After test eval tier data-> {alg_state}')
 
-    def hook_training(self, federator_state, alg_state: dict, deadline, training_start_time) -> bool:
+    def hook_training(self, federator_state, alg_state: dict, training_start_time) -> bool:
         pass
 
     def hook_post_training(self, federator_state, alg_state: dict):

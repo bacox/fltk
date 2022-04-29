@@ -1,5 +1,5 @@
-from strategy.algorithms.Alg import FederatedAlgorithm
-from util.config import Config
+from fltk.strategy.algorithms.Alg import FederatedAlgorithm
+from fltk.util.config import Config
 
 
 class Vanilla(FederatedAlgorithm):
@@ -18,7 +18,7 @@ class Vanilla(FederatedAlgorithm):
     def hook_post_eval(self, federator_state, alg_state: dict, test_accuracy):
         pass
 
-    def hook_training(self, federator_state, alg_state: dict, deadline, training_start_time) -> bool:
+    def hook_training(self, federator_state, alg_state: dict, training_start_time) -> bool:
         pass
 
     def hook_post_training(self, federator_state, alg_state: dict):

@@ -69,7 +69,7 @@ class Client(Node):
 
         has_send_metric = False
         number_of_training_samples = len(self.dataset.get_train_loader()) * num_epochs
-
+        remaining_training_samples = number_of_training_samples
         # Init profiler
         net_split_point = get_net_split_point(self.config.net_name)
         profiling_size = 100
@@ -115,6 +115,7 @@ class Client(Node):
                     p_data[iter] = e_time
                     iter += 1
 
+                remaining_training_samples -= self.config.batch_size
                 # Mark logging update step
                 if i % self.config.log_interval == 0:
                     self.logger.debug(
@@ -128,9 +129,18 @@ class Client(Node):
                         p.remove_all_handles()
                         profiler_data = p.aggregate_values()
                         self.logger.info(f'Profiler data: {profiler_data}')
+                        self.logger.info(f'{remaining_training_samples=}')
+
                         self.logger.info(f'Profiler data (sum): {np.sum(profiler_data)} and {e_time} and {np.mean(p_data)}')
                         self.logger.info(f'Profiler data (%): {np.abs(np.mean(p_data) - np.sum(profiler_data)) / np.sum(profiler_data)}')
-                        self.message_async('federator', 'save_performance_metric', self.id, profiler_data)
+                        profiling_obj = {
+                            'pm': profiler_data,
+                            'ps': profiling_size,
+                            'bs': self.config.batch_size,
+                            'rl': number_of_training_samples - i,
+                            'dd': self.labels_dist[1].tolist()
+                        }
+                        self.message_async('federator', 'save_performance_metric', self.id, profiling_obj)
 
                 if self.terminate_training:
                     break
@@ -229,7 +239,11 @@ class Client(Node):
     def receive_offloading_request(self, sender_id, model_params):
         self.has_offloading_request = True
         # Initialize net instead of just copying model params
-        self.nets[sender_id] = model_params
+        model_params
+        self.set_net(self.load_default_model(), sender_id)
+        self.update_nn_parameters(model_params, sender_id)
+        # net = self.nets[sender_id]
+        # self.nets[sender_id] = model_params
 
     def receive_offloading_decision(self, node_id, when: float):
         self.offloading_decision['node-id'] = node_id
@@ -256,9 +270,12 @@ class Client(Node):
             time.sleep(0.1)
 
         if self.has_offloading_request:
+            self.logger.info(f'Available keys in nets ditc: {self.nets.keys()}')
+            self.logger.info(f'Other keys in nets ditc: {self.nets.other_keys()}')
             other_client_id = self.nets.other_keys()[0]
             self.logger.info(f'I need to train the offloading model from client {other_client_id} as well!')
             self.nets.select(other_client_id)
+            self.logger.info(self.nets)
             loss, weights = self.train(round_id, num_epochs, False)
             # time_mark_between = time.time()
             accuracy, test_loss = self.test()
