@@ -59,7 +59,7 @@ class Client(Node):
             time.sleep(0.1)
         self.logger.info('Exiting node')
 
-    def train(self, round_id: int, num_epochs: int, use_profiler = True):
+    def train(self, round_id: int, num_epochs: int, use_profiler = True, limit_num_training_updates: int = 0):
         if not self.real_time:
             use_profiler = False
         start_time = time.time()
@@ -80,6 +80,7 @@ class Client(Node):
         if p.active:
             p.attach(network)
         self.logger.info(f'{self.id}: Number of training samples: {number_of_training_samples}')
+        i = 1
         for epoch in range(num_epochs):
             if self.distributed:
                 self.dataset.train_sampler.set_epoch(round_id + epoch)
@@ -123,6 +124,9 @@ class Client(Node):
                     final_running_loss = running_loss / self.config.log_interval
                     running_loss = 0.0
 
+                if limit_num_training_updates and i >= limit_num_training_updates:
+                    break
+
                 if p.active:
                     if i == profiling_size - 1:
                         p.active = False
@@ -146,9 +150,12 @@ class Client(Node):
                     break
 
                 if self.offloading_decision:
+                    # @TODO: Incoorporate offloading_reponse_id in message
                     # Do not check when for now, just execute
                     self.logger.info(f'{self.id} is offloading to {self.offloading_decision["node-id"]}')
-                    self.message_async(self.offloading_decision['node-id'], Client.receive_offloading_request, self.id, self.get_nn_parameters())
+                    rem_local_updates = number_of_training_samples - i
+                    self.logger.info(f'REMAINING LOCAL UPDATES IS {number_of_training_samples} - {i} = {rem_local_updates}')
+                    self.message_async(self.offloading_decision['node-id'], Client.receive_offloading_request, self.id, self.get_nn_parameters(), self.offloading_decision['response_id_to'], rem_local_updates)
                     self.freeze_layers(network, net_split_point)
                     self.message_async(self.offloading_decision['node-id'], Client.unlock)
                     self.offloading_decision = {}
@@ -158,7 +165,7 @@ class Client(Node):
         duration = end_time - start_time
         # self.logger.info(f'Train duration is {duration} seconds')
         self.unfreeze_layers()
-        return final_running_loss, self.get_nn_parameters(),
+        return final_running_loss, self.get_nn_parameters(), i
 
     def set_tau_eff(self, total):
         client_weight = self.get_client_datasize() / total
@@ -236,27 +243,31 @@ class Client(Node):
     def get_client_datasize(self):
         return len(self.dataset.get_train_sampler())
 
-    def receive_offloading_request(self, sender_id, model_params):
+    def receive_offloading_request(self, sender_id, model_params, reponse_id: str, rem_local_updates: int):
         self.has_offloading_request = True
+        self.offloading_reponse_id = reponse_id
+        self.offloading_rem_local_updates = rem_local_updates
         # Initialize net instead of just copying model params
-        model_params
+        # model_params
         self.set_net(self.load_default_model(), sender_id)
         self.update_nn_parameters(model_params, sender_id)
         # net = self.nets[sender_id]
         # self.nets[sender_id] = model_params
 
-    def receive_offloading_decision(self, node_id, when: float):
+    def receive_offloading_decision(self, node_id, when: float, response_id_to):
         self.offloading_decision['node-id'] = node_id
         self.offloading_decision['when'] = when
+        self.offloading_decision['response_id_to'] = response_id_to
+        # self.offloading_decision['response_id_from'] = response_id_from
 
     def stop_training(self):
         self.terminate_training = True
         self.logger.info('Got a call to stop training')
 
-    def exec_round(self, round_id: int, num_epochs: int) -> Tuple[Any, Any, Any, Any, float, float, float]:
+    def exec_round(self, round_id: int, num_epochs: int, response_id: str, server_ref) -> Tuple[Any, Any, Any, Any, float, float, float]:
         start = time.time()
         self.terminate_training = False
-        loss, weights = self.train(round_id, num_epochs)
+        loss, weights, num_samples = self.train(round_id, num_epochs)
         time_mark_between = time.time()
         accuracy, test_loss = self.test()
 
@@ -264,32 +275,49 @@ class Client(Node):
         round_duration = end - start
         train_duration = time_mark_between - start
         test_duration = end - time_mark_between
+        if hasattr(self.optimizer, 'pre_communicate'):  # aka fednova or fedprox
+            self.optimizer.pre_communicate()
+        for k, v in weights.items():
+            weights[k] = v.cpu()
+        self.message_async(server_ref, 'receive_training_result', response_id, [loss, weights, accuracy, test_loss, round_duration, train_duration, test_duration, num_samples])
         # self.logger.info(f'Round duration is {duration} seconds')
 
         while self.is_locked():
             time.sleep(0.1)
 
         if self.has_offloading_request:
+            offloading_train_start = time.time()
+            offloading_response_id = self.offloading_reponse_id
             self.logger.info(f'Available keys in nets ditc: {self.nets.keys()}')
             self.logger.info(f'Other keys in nets ditc: {self.nets.other_keys()}')
             other_client_id = self.nets.other_keys()[0]
             self.logger.info(f'I need to train the offloading model from client {other_client_id} as well!')
             self.nets.select(other_client_id)
             self.logger.info(self.nets)
-            loss, weights = self.train(round_id, num_epochs, False)
+            # loss, weights = self.train(round_id, num_epochs, False, 0)
+            loss, weights, num_samples = self.train(round_id, num_epochs, False, self.offloading_rem_local_updates)
+            offloading_time_mark_between = time.time()
             # time_mark_between = time.time()
             accuracy, test_loss = self.test()
+            offloading_test_end = time.time()
+            offloading_train_duration= offloading_time_mark_between - offloading_train_start
+            offloading_test_duration = offloading_test_end - offloading_time_mark_between
             self.logger.info('Stopping training of alternative model')
+            for k, v in weights.items():
+                weights[k] = v.cpu()
+            self.message_async(server_ref, 'receive_training_result', offloading_response_id,
+                                   [loss, weights, accuracy, test_loss, round_duration, offloading_train_duration, offloading_test_duration, num_samples])
             self.nets.reset()
+            # @TODO: Use offloading response_id to send offloaded weights to the server
             trained_offloaded_model = self.nets.remove_model(other_client_id)
 
 
-        if hasattr(self.optimizer, 'pre_communicate'):  # aka fednova or fedprox
-            self.optimizer.pre_communicate()
-        for k, v in weights.items():
-            weights[k] = v.cpu()
+        # if hasattr(self.optimizer, 'pre_communicate'):  # aka fednova or fedprox
+        #     self.optimizer.pre_communicate()
+        # for k, v in weights.items():
+        #     weights[k] = v.cpu()
         self.logger.info('Ending training')
-        return loss, weights, accuracy, test_loss, round_duration, train_duration, test_duration
+        # return loss, weights, accuracy, test_loss, round_duration, train_duration, test_duration
 
     def __del__(self):
         self.logger.info(f'Client {self.id} is stopping')

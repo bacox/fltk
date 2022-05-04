@@ -35,6 +35,7 @@ class LocalClient:
 def cb_factory(future: torch.Future, method, *args, **kwargs):
     future.then(lambda x: method(x, *args, **kwargs))
 
+
 class Federator(Node):
     clients: List[LocalClient] = []
     # clients: List[NodeReference] = []
@@ -62,15 +63,16 @@ class Federator(Node):
         #     'tiers': [],
         #     'selected_tier_id': ''
         # }
-        prefix_text = ''
-        if config.replication_id:
-            prefix_text = f'_r{config.replication_id}'
-        config.output_path = Path(config.output_path) / f'{config.experiment_prefix}{prefix_text}'
+        # prefix_text = ''
+        # if config.replication_id:
+        #     prefix_text = f'_r{config.replication_id}'
+        # config.output_path = Path(config.output_path) / f'{config.experiment_prefix}{prefix_text}'
         self.exp_data = DataContainer('federator', config.output_path, FederatorRecord, config.save_data_append)
         Config.ToYamlFile(config, config.output_path / 'config.yaml')
         self.aggregation_method = get_aggregation(config.aggregation)
         self.selected_clients: List[LocalClient] = []
         self.performance_data = {}
+        self.response_store = {}
 
 
 
@@ -247,6 +249,39 @@ class Federator(Node):
         self.logger.info(f'Test duration is {duration} seconds')
         return accuracy, loss
 
+    def clear_response_store(self):
+        self.response_store = {}
+
+    def create_response_expectation(self, response_id: str) -> torch.Future:
+        future = torch.futures.Future()
+        self.response_store[response_id] = {'future': future, 'valid': True}
+        return future
+
+    def receive_training_result(self, response_id, response_data: list):
+        self.logger.info(f'Received training result with response_id: {response_id}')
+        if response_id in self.response_store:
+            if self.response_store[response_id]['valid']:
+                self.response_store[response_id]['response_data'] = response_data
+                self.response_store[response_id]['future'].set_result([True, response_data])
+            else:
+                self.logger.info(f'Omitting client response because it is marked invalid!')
+                self.response_store[response_id]['future'].set_result([False, []])
+        else:
+            self.logger.warning(f'Got an unknown response with id "{response_id}"')
+
+    # def receive_training_result(self, client_ref: LocalClient, client_weights, client_sizes, num_epochs, train_loss, weights, accuracy, test_loss, round_duration, train_duration, test_duration):
+    #     self.logger.info(f'Training callback for client {client_ref.name} with accuracy={accuracy}')
+    #     if client_ref.valid_response:
+    #         client_weights[client_ref.name] = weights
+    #         client_data_size = self.message(client_ref.ref, Client.get_client_datasize)
+    #         client_sizes[client_ref.name] = client_data_size
+    #         client_ref.exp_data.append(
+    #             ClientRecord(round_id, train_duration, test_duration, round_duration, num_epochs, 0, accuracy,
+    #                          train_loss,
+    #                          test_loss))
+    #     else:
+    #         self.logger.info(f'Omitting client response because it is marked invalid!')
+
     def exec_round(self, round_id: int):
         self.logger.info('='*20)
         self.logger.info(f'= Starting round {round_id} =')
@@ -284,11 +319,16 @@ class Federator(Node):
         training_futures: List[torch.Future] = []
 
         def training_cb(fut: torch.Future, client_ref: LocalClient, client_weights, client_sizes, num_epochs):
-            train_loss, weights, accuracy, test_loss, round_duration, train_duration, test_duration = fut.wait()
+            valid, response_data = fut.wait()
+            if not valid:
+                self.logger.info(f'Omitting client response because it is marked invalid in the response store!')
+                return
+            train_loss, weights, accuracy, test_loss, round_duration, train_duration, test_duration, num_samples = response_data
             self.logger.info(f'Training callback for client {client_ref.name} with accuracy={accuracy}')
             if client_ref.valid_response:
                 client_weights[client_ref.name] = weights
-                client_data_size = self.message(client_ref.ref, Client.get_client_datasize)
+                # client_data_size = self.message(client_ref.ref, Client.get_client_datasize)
+                client_data_size = num_samples
                 client_sizes[client_ref.name] = client_data_size
                 client_ref.exp_data.append(
                     ClientRecord(round_id, train_duration, test_duration, round_duration, num_epochs, 0, accuracy, train_loss,
@@ -297,8 +337,17 @@ class Federator(Node):
                 self.logger.info(f'Omitting client response because it is marked invalid!')
 
         for client in self.selected_clients:
-            future = self.message_async(client.ref, Client.exec_round, round_id, num_epochs)
-            cb_factory(future, training_cb, client, client_weights, client_sizes, num_epochs)
+            response_id = f'{round_id}-{client.name}'
+            # @TODO: Use this future instead
+            response_future = self.create_response_expectation(response_id)
+            server_ref = 'federator'
+            if not self.config.real_time:
+                server_ref = self
+            future = self.message_async(client.ref, Client.exec_round, round_id, num_epochs, response_id, server_ref)
+
+
+            cb_factory(response_future, training_cb, client, client_weights, client_sizes, num_epochs)
+            # cb_factory(future, training_cb, client, client_weights, client_sizes, num_epochs)
             self.logger.info(f'Request sent to client {client.name}')
             training_futures.append(future)
 
@@ -308,7 +357,7 @@ class Federator(Node):
         training_start_time = time.time()
         stop_loop = False
         while not all_futures_done(training_futures) and not stop_loop:
-            stop_loop = self.algorithm.hook_training(self, self.algorithm_state, training_start_time)
+            stop_loop = self.algorithm.hook_training(self, self.algorithm_state, training_start_time, round_id)
             if stop_loop:
                 break
             # for (c, c_data) in [(x, c_data) for x, c_data in self.callables.items() if c_data['active']]:
@@ -316,6 +365,20 @@ class Federator(Node):
             #     if stop_loop:
             #         break
             time.sleep(0.1)
+
+        self.logger.info('Getting client weights from self.response_store')
+        # client_weights = {}
+        # client_sizes = {}
+        self.algorithm.hook_pre_aggregation(self, self.algorithm_state, round_id)
+
+        self.logger.info(f'Aggregating {len(self.response_store)} responses!')
+        for k, v in self.response_store.items():
+            self.logger.info(f'[{k}] num samples: {v["response_data"][7]}')
+        # for response_id, item in self.response_store.items():
+        #     self.logger.info(f'[{response_id}] -> {item}')
+        #     if response_id.startswith(str(round_id)):
+        #         train_loss, weights, accuracy, test_loss, round_duration, train_duration, test_duration = item['response_data']
+
 
         if len(client_weights):
             updated_model = self.aggregation_method(client_weights, client_sizes)

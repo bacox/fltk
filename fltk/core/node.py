@@ -1,5 +1,6 @@
 import copy
 import os
+from pathlib import Path
 from typing import Callable, Any
 import torch
 from torch.distributed import rpc
@@ -67,6 +68,11 @@ class Node:
 
     def __init__(self, id: int, rank: int, world_size: int, config: Config):
         self.config = config
+        prefix_text = ''
+        if config.replication_id:
+            prefix_text = f'_r{config.replication_id}'
+        config.output_path = Path(config.output_path) / f'{config.experiment_prefix}{prefix_text}'
+
         self.device = torch.device("cpu")
         self.id = id
         self.rank = rank
@@ -221,8 +227,14 @@ class Node:
             args_list = [method, self.id] + list(args)
             return rpc.rpc_async(other_node, func, args=args_list,  kwargs=kwargs)
         # Wrap inside a future to keep the logic the same
+
         future = torch.futures.Future()
-        future.set_result(method(other_node, *args, **kwargs))
+        if type(method) is str:
+            method = getattr(other_node, method)
+            future.set_result(method(*args, **kwargs))
+        else:
+            future.set_result(method(other_node, *args, **kwargs))
+        # future.set_result(method(other_node, *args, **kwargs))
         return future
 
     def freeze_layers(self, net, until: int):

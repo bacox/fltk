@@ -1,6 +1,7 @@
 import copy
 import time
 
+import torch
 import yaml
 
 from fltk.strategy.algorithms.Alg import FederatedAlgorithm
@@ -9,6 +10,9 @@ from typing import List
 from scipy.stats import wasserstein_distance
 import numpy as np
 from itertools import zip_longest
+
+from fltk.nets import get_net_split_point, get_net_feature_layers_names
+from fltk.strategy.aggregation.FedAvg import fed_avg
 
 
 def client_matching(client_data, performance_data):
@@ -85,10 +89,14 @@ def cl_algorithm(performance_data: dict, similarity_matrix: np.ndarray):
     # For now stick with the reverse sorted matching
     for item in zip_longest(sorted_slow, sorted_fast):
         if not None in item:
+            decision_id = f"{item[0]['id']}-{item[1]['id']}"
             decisions.append({
+                'id': decision_id,
                 'from': item[0]['id'],
                 'to': item[1]['id'],
-                'when': 0
+                'when': 0,
+                'response_id_to': f'O-{decision_id}-s',
+                # 'response_id_from': f'O-{decision_id}-w'
             })
     return decisions
 
@@ -109,7 +117,7 @@ class Offloading(FederatedAlgorithm):
     def hook_post_eval(self, federator_state, alg_state: dict, test_accuracy):
         pass
 
-    def hook_training(self, federator_state, alg_state: dict, training_start_time) -> bool:
+    def hook_training(self, federator_state, alg_state: dict, training_start_time, round_id) -> bool:
         # federator_state.logger.info('Inside training hook!')
         client_ids = [x.name for x in federator_state.selected_clients]
         if 'first_cycle' not in alg_state:
@@ -123,7 +131,7 @@ class Offloading(FederatedAlgorithm):
             # Make offloading calls
 
             offloading_decisions = cl_algorithm(federator_state.performance_data, {})
-
+            alg_state['offloading_decisions'] = offloading_decisions
             federator_state.logger.info(f'Client ids are {client_ids}')
             federator_state.logger.info(f'Performance data is {federator_state.performance_data}')
             # pm_values = [x['pm'] for x in federator_state.performance_data.values()]
@@ -149,8 +157,12 @@ class Offloading(FederatedAlgorithm):
                 federator_state.logger.info(f'Performance file at: {profiling_file}')
 
             for decision in offloading_decisions:
+                decision['response_id_to'] = f"{round_id}-" + decision['response_id_to']
+                # decision['response_id_from'] = f"{round_id}-" + decision['response_id_from']
                 federator_state.logger.info(f'Client {decision["from"]} will offload to client {decision["to"]}')
-                federator_state.message_async(decision['from'], 'receive_offloading_decision', decision['to'], decision['when'])
+                federator_state.create_response_expectation(decision['response_id_to'])
+                # federator_state.create_response_expectation(decision['response_id_from'])
+                federator_state.message_async(decision['from'], 'receive_offloading_decision', decision['to'], decision['when'], decision['response_id_to'])
                 federator_state.message_async(decision['from'], 'unlock')
 
             # for c1, c2 in offloading_decision:
@@ -166,3 +178,66 @@ class Offloading(FederatedAlgorithm):
         # Reset state for next round
         federator_state.algorithm_state = {}
         federator_state.logger.info("Resetting the algorithm state")
+
+    def pre_agggrate_merge(self, weights_a, num_samples_a, weights_b, num_samples_b):
+        weights = {'a': weights_a, 'b': weights_b}
+        sizes = {'a': num_samples_a, 'b':num_samples_b}
+        return fed_avg(weights, sizes), np.max([num_samples_a,num_samples_b])
+
+    def pre_aggregate_glue(self, model_a_data, model_b_data, feature_layer_names: List[str], split_point: int):
+        '''
+
+        :param model_a_data: To original model
+        :param model_b_data: The offloaded model.
+        :param feature_layer_names:
+        :param split_point:
+        :return:
+        '''
+        print(f'Glueing to models from layer {split_point} or names {feature_layer_names}')
+
+        for name in model_a_data.keys():
+            if any([True for x in feature_layer_names if str(name).startswith(x)]):
+                model_a_data[name].data += model_b_data[name].data
+                print(f'Matching {name} on {feature_layer_names}')
+        return model_a_data
+
+
+    def hook_pre_aggregation(self, federator_state, alg_state: dict, round_id: int):
+        # Call super to filter responses based on the current round_id
+        super().hook_pre_aggregation(federator_state, alg_state, round_id)
+
+        federator_state.logger.info(f'Found following responses')
+        for k,_ in federator_state.response_store.items():
+            federator_state.logger.info(f'-\t {k}')
+        to_merge = []
+        offloaded = [k for k, v in federator_state.response_store.items() if k.startswith(f'{round_id}-O-')]
+        federator_state.logger.info(f'Found the following offloaded models: {offloaded}')
+        net_split_point = get_net_split_point(federator_state.config.net_name)
+        feature_layer_names = get_net_feature_layers_names(federator_state.config.net_name)
+        for offloaded_client in offloaded:
+            decision_id = '-'.join(offloaded_client.split("-")[2:4])
+
+
+            # alg_state
+            to_match = f'{round_id}-{offloaded_client.split("-")[2]}'
+            decision = [x for x in alg_state['offloading_decisions'] if x['id'] == decision_id]
+            federator_state.logger.info(f'Need to merge {offloaded_client} and {to_match} with decision id: {decision}')
+            # responses: dict = federator_state.response_store
+            resp_model_b = federator_state.response_store.pop(offloaded_client)
+            resp_model_a = federator_state.response_store[to_match]
+            # resp_data_a = resp_model_a['response_data']
+            _, weights_a, _, _, _, _, _, num_samples_a = resp_model_a['response_data']
+            _, weights_b, _, _, _, _, _, num_samples_b = resp_model_b['response_data']
+            print(f'Merging A: {weights_a.keys()}')
+            print(f'With keys B: {weights_b.keys()}')
+            merged_weights = self.pre_aggregate_glue(weights_a, weights_b, feature_layer_names, net_split_point)
+            merged_num_samples = np.max([num_samples_a, num_samples_b])
+            # merged_weights, merged_num_samples = self.pre_agggrate_merge(weights_a, num_samples_a, weights_b,
+            #                                                              num_samples_b)
+            federator_state.response_store[to_match]['response_data'][1] = merged_weights
+            federator_state.response_store[to_match]['response_data'][7] = merged_num_samples
+
+            # @TODO: Merge models!
+
+
+

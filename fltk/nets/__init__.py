@@ -38,3 +38,16 @@ def get_net_split_point(name: Nets):
         Nets.shakespeare_rnn: 2
     }
     return nets_split_point[name]
+
+def get_net_feature_layers_names(name: Nets):
+    nets_split_point = {
+        Nets.cifar100_resnet: [],
+        Nets.cifar100_vgg: [],
+        Nets.cifar10_cnn: [],
+        Nets.cifar10_resnet: [],
+        Nets.fashion_mnist_cnn: [],
+        Nets.fashion_mnist_resnet: [],
+        Nets.mnist_cnn: ['conv1', 'conv2'],
+        Nets.shakespeare_rnn: []
+    }
+    return nets_split_point[name]

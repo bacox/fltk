@@ -41,7 +41,7 @@ class FederatedAlgorithm(ABC):
         pass
 
     @abstractmethod
-    def hook_training(self, federator_state, alg_state: dict, training_start_time) -> bool:
+    def hook_training(self, federator_state, alg_state: dict, training_start_time, round_id: int) -> bool:
         '''
         Hook call during the training loop
         :return:
@@ -51,3 +51,8 @@ class FederatedAlgorithm(ABC):
     @abstractmethod
     def hook_post_training(self, federator_state, alg_state: dict):
         pass
+
+    def hook_pre_aggregation(self, federator_state, alg_state: dict, round_id: int):
+        # Only keep the responses from this round
+        # @TODO: Filter out invalid responses?
+        federator_state.response_store = {k: v for k, v in federator_state.response_store.items() if k.startswith(str(round_id))}

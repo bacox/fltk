@@ -1,7 +1,7 @@
 ---
 # Experiment configuration
-epochs: 3
-rounds: 10
+epochs: 1
+rounds: 3
 epochs_per_cycle: 1
 wait_for_clients: true
 net: MNISTCNN
@@ -10,9 +10,9 @@ dataset: mnist
 cuda: false
 profiling_time: 100
 warmup_round: false
-output_location: 'output/example_docker'
+output_location: 'output/example_offloading_docker_4'
 tensor_board_active: true
-clients_per_round: 2
+clients_per_round: 4
 #node_groups:
 #  slow: [1, 1]
 #  medium: [2, 2]
@@ -21,7 +21,7 @@ sampler: "uniform" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (
 sampler_args:
   - 0.07     # label limit || q probability || alpha || unused
   - 42    # random seed || random seed || random seed || unused
-num_clients: 2
+num_clients: 4
 replications: 1
 algorithm_name: 'offloading'
 deadline_time: 100
@@ -35,14 +35,14 @@ deploy:
     clients:
       fast:
         stub-name: stub_default.yml
-        amount: 1
+        amount: 2
         pin-cores: true
         num-cores: 1
         cpu-speed: 1
         cpu-variation: 0
       slow:
         stub-name: stub_default.yml
-        amount: 1
+        amount: 2
         pin-cores: true
         num-cores: 1
         cpu-speed: 0.5
