@@ -18,10 +18,10 @@ def check_num_clients_consistency(cfg_data: dict):
     if type(cfg_data) is str:
         cfg_data = yaml.safe_load(copy.deepcopy(cfg_data))
 
-    if 'deploy' in cfg_data and 'docker' in cfg_data['deploy']:
-        num_docker_clients = sum([x['amount'] for x in cfg_data['deploy']['docker']['clients'].values()])
-        if cfg_data['num_clients'] != num_docker_clients:
-            print('[Warning]\t Number of docker clients is not equal to the num_clients property!')
+    # if 'deploy' in cfg_data and 'docker' in cfg_data['deploy']:
+    #     num_docker_clients = sum([x['amount'] for x in cfg_data['deploy']['docker']['clients'].values()])
+    #     if cfg_data['num_clients'] != num_docker_clients:
+    #         print('[Warning]\t Number of docker clients is not equal to the num_clients property!')
 
 
 def generate(base_path: Path):
@@ -92,9 +92,9 @@ def run(base_path: Path):
         # Run in docker
         # Generate Docker
         print(descr_data)
-        docker_deploy_path = Path(descr_data['deploy']['docker']['base_path'])
-
-        print(docker_deploy_path)
+        # docker_deploy_path = Path(descr_data['deploy']['docker']['base_path'])
+        #
+        # print(docker_deploy_path)
         run_docker = True
         generate_compose_file_from_dict(descr_data['deploy']['docker'])
         # generate_compose_file(docker_deploy_path)
@@ -141,6 +141,55 @@ def run(base_path: Path):
     #     first_prefix = ''
 
     # print('Done')
+
+def generate_linear(num: int):
+    import numpy as np
+    print(1.0 / num)
+    step = 1.0 / num
+    speeds = np.arange(step, 1+step, step)
+    cpus = np.ones(num)
+    print(speeds)
+    print(cpus)
+    build_client_specs(speeds.tolist(), cpus.tolist())
+
+def generate_equal(num: int):
+    import numpy as np
+    print(1.0 / num)
+    step = 1.0 / num
+    speeds = np.ones(num)
+    cpus = np.ones(num)
+    print(speeds)
+    print(cpus)
+    build_client_specs(speeds.tolist(), cpus.tolist())
+
+def build_client_specs(speeds, cpus):
+    clients = []
+    for idx, (speed, num_cpu) in enumerate(zip(speeds, cpus)):
+        print(f'Item {idx}, s: {speed}, c: {num_cpu}')
+        obj = {
+            'rank': idx + 1,
+            'num-cores': num_cpu,
+            'cpu-speed': speed,
+            'stub-name': 'stub_default.yml'
+        }
+        clients.append(obj)
+
+    print(yaml.dump(clients))
+    with open('client_dump.yaml', 'w+') as file:
+        yaml.dump(clients, file)
+
+def generate_client_specs():
+    import numpy as np
+    speeds = np.arange(0.1, 1.1, 0.1)
+
+    print(speeds)
+    pass
+
+if __name__ == '__main__':
+    print('Generate client set')
+    # generate_client_specs()
+    generate_equal(6)
+    # generate_linear(6)
 
 # if __name__ == '__main__':
 #     base_path = Path(__file__).parent

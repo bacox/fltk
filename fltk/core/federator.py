@@ -356,6 +356,7 @@ class Federator(Node):
 
         training_start_time = time.time()
         stop_loop = False
+        self.logger.info(f"WAITING for {len(training_futures)} responses!")
         while not all_futures_done(training_futures) and not stop_loop:
             stop_loop = self.algorithm.hook_training(self, self.algorithm_state, training_start_time, round_id)
             if stop_loop:

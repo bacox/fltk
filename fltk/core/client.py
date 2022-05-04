@@ -120,7 +120,7 @@ class Client(Node):
                 # Mark logging update step
                 if i % self.config.log_interval == 0:
                     self.logger.debug(
-                        '[%s] [%d, %5d] loss: %.3f' % (self.id, num_epochs, i, running_loss / self.config.log_interval))
+                        '[%s] [%d, %5d] loss: %.3f' % (self.id, round_id, i, running_loss / self.config.log_interval))
                     final_running_loss = running_loss / self.config.log_interval
                     running_loss = 0.0
 

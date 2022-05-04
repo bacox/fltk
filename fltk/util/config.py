@@ -22,7 +22,7 @@ class Config:
     momentum: float = 0.1
     cuda: bool = False
     shuffle: bool = False
-    log_interval: int = 10
+    log_interval: int = 50
     scheduler_step_size: int = 50
     scheduler_gamma: float = 0.5
     min_lr: float = 1e-10

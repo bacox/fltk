@@ -40,7 +40,7 @@ class TiFL(FederatedAlgorithm):
         selected_tier.accuracy = test_accuracy
         federator_state.logger.info(f'After test eval tier data-> {alg_state}')
 
-    def hook_training(self, federator_state, alg_state: dict, training_start_time) -> bool:
+    def hook_training(self, federator_state, alg_state: dict, training_start_time, round_id: int) -> bool:
         pass
 
     def hook_post_training(self, federator_state, alg_state: dict):

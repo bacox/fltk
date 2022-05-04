@@ -22,7 +22,7 @@ class Deadline(FederatedAlgorithm):
     def hook_post_eval(self, federator_state, alg_state: dict, test_accuracy):
         pass
 
-    def hook_training(self, federator_state, alg_state: dict, training_start_time) -> bool:
+    def hook_training(self, federator_state, alg_state: dict, training_start_time, round_id: int) -> bool:
         if time.time() > training_start_time + self.deadline_time:
             federator_state.logger.warning('Deadline has passed!')
             # Notify clients to stop

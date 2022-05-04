@@ -61,6 +61,39 @@ def gen_client(name: str, client_dict: dict, base_path: Path):
         client_descriptions.append(client_descr)
     return client_descriptions
 
+def gen_client_2(name: str, client_dict: dict, base_path: Path):
+    """
+    rank (id)
+    num_cpu
+    cpu_set
+    name
+    """
+    client_descr_template = {
+        'rank': 0,
+        'num_cpu': 1,
+        'num_cores': None,
+        'name': name,
+        'stub-file': 'stub.yml'
+    }
+    print(Path.cwd())
+    mu = client_dict['cpu-speed']
+    # sigma = client_dict['cpu-variation']
+    # n = client_dict['amount']
+    # np.random.seed(0)
+    stub_file = base_path / client_dict['stub-name']
+    stub_data = load_yaml_file(stub_file)
+    if True or client_dict['pin-cores'] is True:
+        client_descr_template['num_cores'] = int(client_dict['num-cores'])
+    client_descr_template['stub-file'] = client_dict['stub-name']
+    # client_cpu_speeds = np.abs(np.round(np.random.normal(mu, sigma, size=n), 2))
+    client_cpu_speeds = [client_dict['cpu-speed']]
+    client_descriptions = []
+    for cpu_speed in client_cpu_speeds:
+        client_descr = copy.deepcopy(client_descr_template)
+        client_descr['num_cpu'] = cpu_speed
+        client_descriptions.append(client_descr)
+    return client_descriptions
+
 
 def generate_clients_proporties(clients_dict: dict, path: Path):
     results = []
@@ -68,9 +101,19 @@ def generate_clients_proporties(clients_dict: dict, path: Path):
         results += gen_client(k, v, path)
     return results
 
+def generate_clients_proporties_2(clients_dict: dict, path: Path):
+    results = []
+    for k,v in clients_dict.items():
+        for c in v:
+            results += gen_client_2(k, c, path)
+        #     print(c)
+        # results += gen_client(k, v, path)
+    return results
+
 def generate_compose_file_from_dict(system: dict):
     path = Path(system['base_path'])
-    client_descriptions = generate_clients_proporties(system['clients'], path)
+    client_descriptions = generate_clients_proporties_2(system['clients'], path)
+    # client_descriptions = generate_clients_proporties(system['clients'], path)
     last_core_id = 0
     world_size = len(client_descriptions) + 1
     system_template_path = path / 'system_stub.yml'

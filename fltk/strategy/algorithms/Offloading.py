@@ -155,8 +155,10 @@ class Offloading(FederatedAlgorithm):
                 federator_state.logger.info('Perf data:')
                 print(perf_data)
                 federator_state.logger.info(f'Performance file at: {profiling_file}')
-
+            unreleased_client_ids = client_ids
             for decision in offloading_decisions:
+                unreleased_client_ids.remove(decision["to"])
+                unreleased_client_ids.remove(decision["from"])
                 decision['response_id_to'] = f"{round_id}-" + decision['response_id_to']
                 # decision['response_id_from'] = f"{round_id}-" + decision['response_id_from']
                 federator_state.logger.info(f'Client {decision["from"]} will offload to client {decision["to"]}')
@@ -169,7 +171,9 @@ class Offloading(FederatedAlgorithm):
             #     federator_state.logger.info(f'Client {c1} will offload to client {c2}')
             #     federator_state.message_async(c1, 'receive_offloading_decision', c2, 0)
             #     federator_state.message_async(c1, 'unlock')
-
+            for unreleased_id in unreleased_client_ids:
+                federator_state.logger.info(f'Client {unreleased_id} not used for offloading -> Unlocking')
+                federator_state.message_async(unreleased_id, 'unlock')
             alg_state['inactive'] = True
 
         return False

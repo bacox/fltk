@@ -18,7 +18,7 @@ class Vanilla(FederatedAlgorithm):
     def hook_post_eval(self, federator_state, alg_state: dict, test_accuracy):
         pass
 
-    def hook_training(self, federator_state, alg_state: dict, training_start_time) -> bool:
+    def hook_training(self, federator_state, alg_state: dict, training_start_time, round_id: int) -> bool:
         pass
 
     def hook_post_training(self, federator_state, alg_state: dict):
