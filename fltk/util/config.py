@@ -37,7 +37,7 @@ class Config:
     }
     loss_function = torch.nn.CrossEntropyLoss
     # Enum
-    log_level: LogLevel = LogLevel.DEBUG
+    log_level: LogLevel = LogLevel.INFO
 
     num_clients: int = 10
     clients_per_round: int = 2
@@ -78,6 +78,13 @@ class Config:
 
     # Parameters for deadline based algorithms such as Deadline and Offloading
     deadline_time: float = 0
+
+    # Parameters for the Offloading based algorithms
+    # Choices:
+    # 0 Aggregate offloaded models using FedAvg
+    # 1 Aggregate offloaded models using glue method
+    # 2 Aggregate offloaded models using Part FedAvg and glue method
+    offloading_option: int = 0
 
 
     def __init__(self, **kwargs) -> None:

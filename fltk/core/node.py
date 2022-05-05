@@ -197,10 +197,10 @@ class Node:
         :param new_params: New weights for the neural network
         :type new_params: dict
         """
-        if key != '__default__':
-            print("Model's state_dict:")
-            for param_tensor in copy.deepcopy(new_params):
-                print(param_tensor, "\t", copy.deepcopy(new_params)[param_tensor].size())
+        # if key != '__default__':
+        #     print("Model's state_dict:")
+        #     for param_tensor in copy.deepcopy(new_params):
+        #         print(param_tensor, "\t", copy.deepcopy(new_params)[param_tensor].size())
         self.nets[key].load_state_dict(copy.deepcopy(new_params), strict=True)
 
     def message(self, other_node: str, method: Callable, *args, **kwargs) -> torch.Future:

@@ -150,10 +150,15 @@ class Offloading(FederatedAlgorithm):
 
                 for key, val in perf_data.items():
                     perf_data[key]['pm'] = np.array(list(val['pm'])).tolist()
+                    perf_data[key]['rcut'] = val['rcut'].item()
+                    perf_data[key]['rect'] = val['rect'].item()
+                    perf_data[key]['rf'] = val['rf'].item()
+                    perf_data[key]['ect'] = val['ect'].item()
+                    perf_data[key]['cut'] = val['cut'].item()
                 perf_data['offloading-decisions'] = copy.deepcopy(offloading_decisions)
                 yaml.dump(perf_data, file)
-                federator_state.logger.info('Perf data:')
-                print(perf_data)
+                # federator_state.logger.info('Perf data:')
+                # print(perf_data)
                 federator_state.logger.info(f'Performance file at: {profiling_file}')
             unreleased_client_ids = client_ids
             for decision in offloading_decisions:
@@ -197,7 +202,7 @@ class Offloading(FederatedAlgorithm):
         :param split_point:
         :return:
         '''
-        print(f'Glueing to models from layer {split_point} or names {feature_layer_names}')
+        print(f'Glue-ing to models from layer {split_point} or names {feature_layer_names}')
 
         for name in model_a_data.keys():
             if any([True for x in feature_layer_names if str(name).startswith(x)]):
@@ -234,14 +239,22 @@ class Offloading(FederatedAlgorithm):
             _, weights_b, _, _, _, _, _, num_samples_b = resp_model_b['response_data']
             print(f'Merging A: {weights_a.keys()}')
             print(f'With keys B: {weights_b.keys()}')
-            merged_weights = self.pre_aggregate_glue(weights_a, weights_b, feature_layer_names, net_split_point)
-            merged_num_samples = np.max([num_samples_a, num_samples_b])
-            # merged_weights, merged_num_samples = self.pre_agggrate_merge(weights_a, num_samples_a, weights_b,
-            #                                                              num_samples_b)
+
+            offloading_choice = federator_state.config.offloading_option
+            if offloading_choice == 2:
+                # Last options (Combined)
+                merged_weights, merged_num_samples = self.pre_agggrate_merge(weights_a, num_samples_a, weights_b,
+                                                                             num_samples_b)
+                merged_weights = self.pre_aggregate_glue(merged_weights, weights_b, feature_layer_names, net_split_point)
+                merged_num_samples = np.max([num_samples_a, num_samples_b])
+            elif offloading_choice == 1:
+                # Glue models together (Option 2)
+                merged_weights = self.pre_aggregate_glue(weights_a, weights_b, feature_layer_names, net_split_point)
+                merged_num_samples = np.max([num_samples_a, num_samples_b])
+            else:
+                # Merge using fedavg (Option 1)
+                merged_weights, merged_num_samples = self.pre_agggrate_merge(weights_a, num_samples_a, weights_b,
+                                                                             num_samples_b)
+
             federator_state.response_store[to_match]['response_data'][1] = merged_weights
             federator_state.response_store[to_match]['response_data'][7] = merged_num_samples
-
-            # @TODO: Merge models!
-
-
-

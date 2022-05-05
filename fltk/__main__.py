@@ -43,6 +43,7 @@ def run_remote(config_path: Path, rank: int, nic=None, host=None, prefix: str=No
     config = Config.FromYamlFile(config_path)
     config.world_size = config.num_clients + 1
     config.replication_id = prefix
+    config.rng_seed += int(config.replication_id)
     nic, host = retrieve_network_params_from_config(config, nic, host)
     if not nic or not host:
         print('Missing rank, host, world-size, or nic argument when in \'remote\' mode!')

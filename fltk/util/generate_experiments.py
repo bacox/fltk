@@ -142,6 +142,35 @@ def run(base_path: Path):
 
     # print('Done')
 
+def generate_tifl_23_uniform():
+    return generate_linear(23)
+
+def generate_tifl_2x6_uniform():
+    import numpy as np
+    num = 6
+    step = 1.0 / num
+    speeds = np.arange(1+step, 2+step, step)
+    cpus = np.ones(num) * 2
+
+    num = 11
+    step = 1.0 / num
+    # speeds2 = np.arange(1 + step, 2 + step, step)
+    # cpus2 = np.ones(num)
+    speeds = np.concatenate((speeds, np.arange(step, 1 + step, step)), axis=0)
+    cpus = np.concatenate((cpus, np.ones(num)), axis=0)
+    print(speeds)
+    print(cpus)
+    build_client_specs(speeds.tolist(), cpus.tolist())
+
+def generate_tifl_23_random():
+    import numpy as np
+    num = 23
+    speeds = np.random.uniform(0.1, 1, num)
+    cpus = np.ones(num)
+    print(speeds)
+    print(cpus)
+    build_client_specs(speeds.tolist(), cpus.tolist())
+
 def generate_linear(num: int):
     import numpy as np
     print(1.0 / num)
@@ -188,7 +217,10 @@ def generate_client_specs():
 if __name__ == '__main__':
     print('Generate client set')
     # generate_client_specs()
-    generate_equal(6)
+    # generate_equal(6)
+    generate_tifl_23_uniform()
+    generate_tifl_23_random()
+    # generate_tifl_2x6_uniform()
     # generate_linear(6)
 
 # if __name__ == '__main__':

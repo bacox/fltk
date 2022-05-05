@@ -11,7 +11,6 @@ from fltk.util.profilerV3 import Profiler
 from fltk.nets import get_net_split_point
 import numpy as np
 
-
 class Client(Node):
     running = False
     terminate_training = False
@@ -236,7 +235,7 @@ class Client(Node):
         end_time = time.time()
         duration = end_time - start_time
         num_updates = min(i, num_updates)
-        print(f'CLient {self.id}, ({duration=} / {num_updates=}) * {number_of_training_samples=}')
+        print(f'Client {self.id}, ({duration=} / {num_updates=}) * {number_of_training_samples=}')
         estimated_full_duration = (duration / num_updates) * number_of_training_samples
         return estimated_full_duration
 
@@ -288,12 +287,12 @@ class Client(Node):
         if self.has_offloading_request:
             offloading_train_start = time.time()
             offloading_response_id = self.offloading_reponse_id
-            self.logger.info(f'Available keys in nets ditc: {self.nets.keys()}')
-            self.logger.info(f'Other keys in nets ditc: {self.nets.other_keys()}')
+            self.logger.info(f'Available keys in nets dict: {self.nets.keys()}')
+            self.logger.info(f'Other keys in nets dict: {self.nets.other_keys()}')
             other_client_id = self.nets.other_keys()[0]
             self.logger.info(f'I need to train the offloading model from client {other_client_id} as well!')
             self.nets.select(other_client_id)
-            self.logger.info(self.nets)
+            # self.logger.info(self.nets)
             # loss, weights = self.train(round_id, num_epochs, False, 0)
             loss, weights, num_samples = self.train(round_id, num_epochs, False, self.offloading_rem_local_updates)
             offloading_time_mark_between = time.time()
@@ -310,6 +309,7 @@ class Client(Node):
             self.nets.reset()
             # @TODO: Use offloading response_id to send offloaded weights to the server
             trained_offloaded_model = self.nets.remove_model(other_client_id)
+            self.has_offloading_request = False
 
 
         # if hasattr(self.optimizer, 'pre_communicate'):  # aka fednova or fedprox

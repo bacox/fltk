@@ -13,13 +13,14 @@ from fltk.strategy import FedAvg, random_selection, average_nn_parameters, avera
 from fltk.util.config import Config
 from dataclasses import dataclass
 
-from fltk.util.data_container import DataContainer, FederatorRecord, ClientRecord
+from fltk.util.data_container import DataContainer, FederatorRecord, ClientRecord, EventRecord
 from fltk.strategy import get_aggregation
 from fltk.strategy.algorithms.deadline import deadline_callable
 from fltk.strategy.algorithms.offloading import offloading_callable
 from fltk.strategy.algorithms import get_algorithm
 from fltk.strategy.algorithms.Alg import FederatedAlgorithm
 from fltk.strategy.client_selection.tifl import create_tiers, tifl_init, tier_selection
+from torch.utils.tensorboard import SummaryWriter
 
 NodeReference = Union[Node, str]
 @dataclass
@@ -30,6 +31,7 @@ class LocalClient:
     exp_data: DataContainer
     valid_response: bool = True
     available: bool = True
+    writer: SummaryWriter = None
 
 
 def cb_factory(future: torch.Future, method, *args, **kwargs):
@@ -52,6 +54,8 @@ class Federator(Node):
 
     def __init__(self, id: int, rank: int, world_size: int, config: Config):
         super().__init__(id, rank, world_size, config)
+        self.event_data = DataContainer('federator_events', config.output_path, EventRecord, config.save_data_append)
+        self.event_data.append(EventRecord('init'))
         self.loss_function = self.config.get_loss_function()()
         self.num_rounds = config.rounds
         self.config = config
@@ -73,6 +77,12 @@ class Federator(Node):
         self.selected_clients: List[LocalClient] = []
         self.performance_data = {}
         self.response_store = {}
+        self.logger.info(f'TENSORBOARD WRITER AT: {str(self.config.output_path)}')
+        self.writer = SummaryWriter(str(self.config.output_path.parent/'runs'/'federator' / self.config.output_path.name))
+        self.writer.add_text('Events', 'Hello world', 0)
+        self.writer.add_text('Events', 'Goodbye world', 1)
+        self.writer.flush()
+        self.logger.info(f'TENSORBOARD WRITER AT INTERNAL: {self.writer.get_logdir()}')
 
 
 
@@ -85,7 +95,7 @@ class Federator(Node):
                 client_name = f'client{client_id}'
                 client = Client(client_name, client_id, world_size, copy.deepcopy(self.config))
                 self.clients.append(LocalClient(client_name, client, 0, DataContainer(client_name, self.config.output_path,
-                                                                                      ClientRecord, self.config.save_data_append)))
+                                                                                      ClientRecord, self.config.save_data_append), writer=SummaryWriter(self.config.output_path.parent/'runs'/client_name / self.config.output_path.name)))
                 self.logger.info(f'Client "{client_name}" created')
 
     def register_client(self, client_name, rank):
@@ -93,7 +103,7 @@ class Federator(Node):
         if self.config.single_machine:
             self.logger.warning('This function should not be called when in single machine mode!')
         self.clients.append(LocalClient(client_name, client_name, rank, DataContainer(client_name, self.config.output_path,
-                                                                                      ClientRecord, self.config.save_data_append)))
+                                                                                      ClientRecord, self.config.save_data_append), writer=SummaryWriter(self.config.output_path.parent/'runs'/client_name / self.config.output_path.name)))
 
     def stop_all_clients(self):
         for client in self.clients:
@@ -132,7 +142,7 @@ class Federator(Node):
             for client in self.clients:
                 resp = self.message(client.ref, Client.is_ready)
                 if resp:
-                    self.logger.info(f'Client {client} is ready')
+                    self.logger.info(f'Client {client.name} is ready')
                 else:
                     self.logger.info(f'Waiting for client {client}')
                     all_ready = False
@@ -183,6 +193,8 @@ class Federator(Node):
         self.client_load_data()
         self.get_client_data_sizes()
         self.clients_ready()
+        self.event_data.append(EventRecord('startup'))
+
 
         # Replace with algorithm hook!
         self.algorithm.hook_post_startup(self, self.algorithm_state)
@@ -190,15 +202,17 @@ class Federator(Node):
 
         # self.logger.info('Sleeping before starting communication')
         # time.sleep(20)
+        self.event_data.append(EventRecord('starting rounds'))
         for communication_round in range(self.config.rounds):
             self.exec_round(communication_round)
-
+        self.event_data.append(EventRecord('saving'))
         self.save_data()
         self.logger.info('Federator is stopping')
 
 
     def save_data(self):
         self.exp_data.save()
+        self.event_data.save()
         for client in self.clients:
             client.exp_data.save()
 
@@ -325,6 +339,12 @@ class Federator(Node):
                 return
             train_loss, weights, accuracy, test_loss, round_duration, train_duration, test_duration, num_samples = response_data
             self.logger.info(f'Training callback for client {client_ref.name} with accuracy={accuracy}')
+            client_ref.writer.add_scalar('Test Accuracy', accuracy, round_id)
+            client_ref.writer.add_scalar('Train Loss', train_loss, round_id)
+            client_ref.writer.add_scalar('Test Loss', test_loss, round_id)
+            client_ref.writer.add_scalar('Round duration', round_duration, round_id)
+            client_ref.writer.flush()
+
             if client_ref.valid_response:
                 client_weights[client_ref.name] = weights
                 # client_data_size = self.message(client_ref.ref, Client.get_client_datasize)
@@ -388,7 +408,6 @@ class Federator(Node):
             self.logger.warning(f'Skipping the aggregation step due to missing client weights! Number of client weights = {len(client_weights)}')
         test_accuracy, test_loss = self.test(self.nets.selected())
         self.logger.info(f'[Round {round_id:>3}] Federator has a accuracy of {test_accuracy} and loss={test_loss}')
-
         self.algorithm.hook_post_eval(self, self.algorithm_state, test_accuracy)
         # TiFL implementation
         # if True:
@@ -403,6 +422,10 @@ class Federator(Node):
 
         end_time = time.time()
         duration = end_time - start_time
+        self.writer.add_scalar('Test Accuracy', test_accuracy, round_id)
+        self.writer.add_scalar('Round duration', duration, round_id)
+        self.writer.add_scalar('Test Loss', test_loss, round_id)
+        self.writer.flush()
         self.exp_data.append(FederatorRecord(len(self.selected_clients), round_id, duration, test_loss, test_accuracy))
         self.logger.info(f'[Round {round_id:>3}] Round duration is {duration} seconds')
         self.performance_data = {}
