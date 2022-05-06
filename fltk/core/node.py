@@ -127,6 +127,9 @@ class Node:
         :return:
         """
         global global_vars
+        while 'self' not in global_vars:
+            print('Warning: node is not yet online!')
+            time.sleep(1)
         global_self = global_vars['self']
         if type(method) is str:
             method = getattr(global_self, method)

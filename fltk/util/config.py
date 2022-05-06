@@ -37,7 +37,7 @@ class Config:
     }
     loss_function = torch.nn.CrossEntropyLoss
     # Enum
-    log_level: LogLevel = LogLevel.INFO
+    log_level: LogLevel = LogLevel.DEBUG
 
     num_clients: int = 10
     clients_per_round: int = 2

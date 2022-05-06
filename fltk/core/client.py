@@ -154,8 +154,16 @@ class Client(Node):
                     self.logger.info(f'{self.id} is offloading to {self.offloading_decision["node-id"]}')
                     rem_local_updates = number_of_training_samples - i
                     self.logger.info(f'REMAINING LOCAL UPDATES IS {number_of_training_samples} - {i} = {rem_local_updates}')
-                    self.message_async(self.offloading_decision['node-id'], Client.receive_offloading_request, self.id, self.get_nn_parameters(), self.offloading_decision['response_id_to'], rem_local_updates)
+                    # def offloading_cb(fut):
+                    #     fut.wait()
+                    #     self.logger.info(f'Offloading request done -> Unlocking client {self.offloading_decision["node-id"]}')
+                    #     self.message_async(self.offloading_decision['node-id'], Client.unlock)
+                    # offloading_future = self.message_async(self.offloading_decision['node-id'], Client.receive_offloading_request, self.id, self.get_nn_parameters(), self.offloading_decision['response_id_to'], rem_local_updates)
+                    # offloading_future.then(offloading_cb)
+                    self.message(self.offloading_decision['node-id'], Client.receive_offloading_request, self.id, self.get_nn_parameters(), self.offloading_decision['response_id_to'], rem_local_updates)
+                    # offloading_future.then(lambda x: self.message_async(self.offloading_decision['node-id'], Client.unlock))
                     self.freeze_layers(network, net_split_point)
+                    self.logger.info(f'Offloading request done -> Unlocking client {self.offloading_decision["node-id"]}')
                     self.message_async(self.offloading_decision['node-id'], Client.unlock)
                     self.offloading_decision = {}
 
@@ -243,6 +251,7 @@ class Client(Node):
         return len(self.dataset.get_train_sampler())
 
     def receive_offloading_request(self, sender_id, model_params, reponse_id: str, rem_local_updates: int):
+        self.logger.info('Received offloading request')
         self.has_offloading_request = True
         self.offloading_reponse_id = reponse_id
         self.offloading_rem_local_updates = rem_local_updates

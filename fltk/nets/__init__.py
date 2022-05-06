@@ -43,7 +43,7 @@ def get_net_feature_layers_names(name: Nets):
     nets_split_point = {
         Nets.cifar100_resnet: [],
         Nets.cifar100_vgg: [],
-        Nets.cifar10_cnn: [],
+        Nets.cifar10_cnn: ['conv1','bn1', 'conv2','bn2', 'conv3','bn3', 'conv4','bn4', 'conv5','bn5', 'conv6','bn6',],
         Nets.cifar10_resnet: [],
         Nets.fashion_mnist_cnn: [],
         Nets.fashion_mnist_resnet: [],

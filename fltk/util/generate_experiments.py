@@ -32,8 +32,8 @@ def generate(base_path: Path):
     with open(descr_path) as descr_f:
         descr_data = descr_f.read()
     exps_path = base_path / 'exps'
-    rm_tree(exps_path)
     exps_path.mkdir(parents=True, exist_ok=True)
+    rm_tree(exps_path)
 
     check_num_clients_consistency(descr_data)
     for exp_cfg in exp_cfg_list:
