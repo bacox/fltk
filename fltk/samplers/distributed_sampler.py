@@ -12,7 +12,7 @@ class DistributedSamplerWrapper(DistributedSampler):
                  rank = None, seed = 0) -> None:
         super().__init__(dataset, num_replicas=num_replicas, rank=rank)
 
-        self.client_id = rank - 1
+        self.client_id = max(0,rank - 1)
         self.n_clients = num_replicas - 1
         if hasattr(dataset, 'classes'):
             self.n_labels = len(dataset.classes)
