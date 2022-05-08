@@ -14,7 +14,7 @@ class DistributedSamplerWrapper(DistributedSampler):
 
         self.client_id = rank - 1
         self.n_clients = num_replicas - 1
-        if 'classes' in dataset:
+        if hasattr(dataset, 'classes'):
             self.n_labels = len(dataset.classes)
         else:
             self.n_labels = 0
