@@ -65,7 +65,7 @@ class Config:
 
     # Save data in append mode. Thereby flushing on every append to file.
     # This could be useful when a system is likely to crash midway an experiment
-    save_data_append: bool = False
+    save_data_append: bool = True
     output_path: Path = Path('output_test_2')
 
     algorithm_name: Algorithm = Algorithm.vanilla
