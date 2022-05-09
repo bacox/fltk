@@ -130,17 +130,17 @@ class Config:
         return self.loss_function
 
     @classmethod
-    def FromYamlFile(cls, path: Path):
-        getLogger(__name__).debug(f'Loading yaml from {path.absolute()}')
+    def FromYamlFile(cls, path: Path, loglevel = LogLevel.DEBUG):
+        getLogger(__name__, loglevel).debug(f'Loading yaml from {path.absolute()}')
         with open(path) as file:
             content = yaml.safe_load(file)
             for k, v in content.items():
-                getLogger(__name__).debug(f'Inserting key "{k}" into config')
+                getLogger(__name__, loglevel).debug(f'Inserting key "{k}" into config')
             return cls(**content)
 
     @classmethod
     def ToYamlFile(cls, config, path: Path):
-        getLogger(__name__).debug(f'Saving config to {path.absolute()}')
+        getLogger(__name__, config.log_level).debug(f'Saving config to {path.absolute()}')
         with open(path, mode='w+') as file:
             dict_data = copy.deepcopy(config.__dict__)
             enum_fields = [x for x in config.__dataclass_fields__.items() if

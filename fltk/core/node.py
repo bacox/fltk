@@ -65,9 +65,9 @@ class Node:
     # net: Any
     nets: Nets
     dataset: Any
-    logger = getLogger(__name__)
 
     def __init__(self, id: int, rank: int, world_size: int, config: Config):
+        self.logger = getLogger(__name__, config.log_level)
         self.config = config
         prefix_text = ''
         if config.replication_id:

@@ -77,12 +77,8 @@ class Federator(Node):
         self.selected_clients: List[LocalClient] = []
         self.performance_data = {}
         self.response_store = {}
-        self.logger.info(f'TENSORBOARD WRITER AT: {str(self.config.output_path)}')
         self.writer = SummaryWriter(str(self.config.output_path.parent/'runs'/'federator' / self.config.output_path.name))
-        self.writer.add_text('Events', 'Hello world', 0)
-        self.writer.add_text('Events', 'Goodbye world', 1)
         self.writer.flush()
-        self.logger.info(f'TENSORBOARD WRITER AT INTERNAL: {self.writer.get_logdir()}')
 
 
 

@@ -10,7 +10,7 @@ from ..util.log import getLogger
 
 
 def get_sampler(dataset, args):
-    logger = getLogger(__name__)
+    logger = getLogger(__name__, args.log_level)
     sampler = None
     if args.get_distributed():
         method = args.get_sampler()
