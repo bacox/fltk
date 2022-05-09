@@ -8,6 +8,7 @@ from fltk.datasets.loader_util import get_dataset
 from fltk.nets import get_net_by_name
 from fltk.util.config import Config
 from fltk.util.log import getLogger
+import time
 
 # Global dictionary to enable peer to peer communication between clients
 global_vars = {}
