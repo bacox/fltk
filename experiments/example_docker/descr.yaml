@@ -4,8 +4,8 @@ epochs: 3
 rounds: 10
 epochs_per_cycle: 1
 wait_for_clients: true
-net: MNISTCNN
-dataset: mnist
+net: FashionMNISTCNN
+dataset: fashion-mnist
 # Use cuda is available; setting to false will force CPU
 cuda: false
 profiling_time: 100
@@ -17,13 +17,13 @@ clients_per_round: 2
 #  slow: [1, 1]
 #  medium: [2, 2]
 #  fast: [3, 3]
-sampler: "uniform" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (default)
-sampler_args:
-  - 0.07     # label limit || q probability || alpha || unused
+data_sampler: "n labels" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (default)
+data_sampler_args:
+  - 2     # label limit || q probability || alpha || unused
   - 42    # random seed || random seed || random seed || unused
 num_clients: 2
 replications: 1
-algorithm_name: 'offloading'
+#algorithm_name: 'offloading'
 deadline_time: 100
 deploy:
   docker:
@@ -33,18 +33,12 @@ deploy:
       pin-cores: true
       num-cores: 1
     clients:
-      fast:
-        stub-name: stub_default.yml
-        amount: 1
-        pin-cores: true
-        num-cores: 1
-        cpu-speed: 1
-        cpu-variation: 0
-      slow:
-        stub-name: stub_default.yml
-        amount: 1
-        pin-cores: true
-        num-cores: 1
-        cpu-speed: 0.5
-        cpu-variation: 0
-
+      default:
+        - cpu-speed: 1
+          num-cores: 1.0
+          rank: 1
+          stub-name: stub_default.yml
+        - cpu-speed: 1
+          num-cores: 1.0
+          rank: 2
+          stub-name: stub_default.yml
