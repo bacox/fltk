@@ -14,7 +14,7 @@ def get_sampler(dataset, args):
     sampler = None
     if args.get_distributed():
         method = args.get_sampler()
-        logger.debug(
+        logger.info(
             "Using {} sampler method, with args: {}".format(method, args.get_sampler_args()))
 
         if method == DataSampler.uniform:

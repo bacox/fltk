@@ -194,17 +194,18 @@ class Federator(Node):
         self.get_client_data_sizes()
         self.clients_ready()
         self.event_data.append(EventRecord('startup'))
+        self.writer.add_scalar('Test Accuracy', 0, -1)
+        self.writer.add_scalar('Round duration', 0, -1)
+        self.writer.add_scalar('Test Loss', 0, -1)
+        self.writer.flush()
 
-
-        # Replace with algorithm hook!
         self.algorithm.hook_post_startup(self, self.algorithm_state)
-        # self.client_profiling()
 
         # self.logger.info('Sleeping before starting communication')
         # time.sleep(20)
         self.event_data.append(EventRecord('starting rounds'))
         for communication_round in range(self.config.rounds):
-            self.exec_round(communication_round)
+            self.exec_round(communication_round+1)
         self.event_data.append(EventRecord('saving'))
         self.save_data()
         self.logger.info('Federator is stopping')

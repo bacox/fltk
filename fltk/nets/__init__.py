@@ -45,7 +45,7 @@ def get_net_feature_layers_names(name: Nets):
         Nets.cifar100_vgg: [],
         Nets.cifar10_cnn: ['conv1','bn1', 'conv2','bn2', 'conv3','bn3', 'conv4','bn4', 'conv5','bn5', 'conv6','bn6',],
         Nets.cifar10_resnet: [],
-        Nets.fashion_mnist_cnn: [],
+        Nets.fashion_mnist_cnn: ['layer1.0', 'layer1.1', 'layer1.1', 'layer2.0', 'layer2.1'],
         Nets.fashion_mnist_resnet: [],
         Nets.mnist_cnn: ['conv1', 'conv2'],
         Nets.shakespeare_rnn: []
