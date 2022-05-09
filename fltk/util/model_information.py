@@ -1,8 +1,8 @@
 from typing import Tuple
-from datasets.loader_util import get_dataset
+from fltk.datasets.loader_util import get_dataset
 from fltk.util.definitions import Dataset, LogLevel
 from dataclasses import dataclass
-from util.config import Config
+from fltk.util.config import Config
 import pandas as pd
 
 
