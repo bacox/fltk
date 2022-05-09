@@ -6,7 +6,7 @@ from pathlib import Path
 from fltk.core.federator import Federator
 from fltk.util.config import Config
 from fltk.util.generate_experiments import generate, run
-from util.definitions import LogLevel
+from fltk.util.definitions import LogLevel
 
 
 def run_single(config_path: Path, prefix: str = None):
