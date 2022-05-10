@@ -6,7 +6,7 @@ from .cifar_10_resnet import Cifar10ResNet
 from .cifar_100_vgg import Cifar100VGG
 from .mnist_cnn import MNIST_CNN
 from .shakespeare_rnn import RNN_Shakespeare
-from ..util.definitions import Nets
+from fltk.util.definitions import Nets
 
 
 def available_nets():
