@@ -293,6 +293,14 @@ class Client(Node):
         while self.is_locked():
             time.sleep(0.1)
 
+        if self.offloading_decision:
+            # Do not use this offloading decision because we are already done
+            # Just unlock the other waiting node and continue
+            self.logger.info(f'{self.id} is not offloading to {self.offloading_decision["node-id"]}; Reason: training already done')
+            self.logger.info(f'Offloading request to be ignored -> Unlocking client {self.offloading_decision["node-id"]}')
+            self.message_async(self.offloading_decision['node-id'], Client.unlock)
+            self.offloading_decision = {}
+
         if self.has_offloading_request:
             offloading_train_start = time.time()
             offloading_response_id = self.offloading_reponse_id
