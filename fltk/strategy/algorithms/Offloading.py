@@ -377,7 +377,15 @@ class Offloading(FederatedAlgorithm):
             resp_model_a = federator_state.response_store[to_match]
             # resp_data_a = resp_model_a['response_data']
             _, weights_a, _, _, _, _, _, num_samples_a = resp_model_a['response_data']
-            _, weights_b, _, _, _, _, _, num_samples_b = resp_model_b['response_data']
+            if "response_data" in resp_model_b:
+                _, weights_b, _, _, _, _, _, num_samples_b = resp_model_b['response_data']
+            else:
+                federator_state.logger.info(
+                    f'Cannot find response data in {offloaded_client}; Using data from weak node only')
+                federator_state.response_store[to_match]['response_data'][1] = weights_a
+                federator_state.response_store[to_match]['response_data'][7] = num_samples_a
+                continue
+                # _, weights_b, _, _, _, _, _, num_samples_b = resp_model_a['response_data']
             print(f'Merging A: {weights_a.keys()}')
             print(f'With keys B: {weights_b.keys()}')
 
