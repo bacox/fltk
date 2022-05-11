@@ -193,6 +193,8 @@ def cl_algorithm(performance_data: dict, similarity_matrix: np.ndarray, offloadi
 
     slow_ids = [x['id'] for x in slow_clients]
     fast_ids = [x['id'] for x in fast_clients]
+    print(f'Slow clients are: {slow_ids}')
+    print(f'Fast clients are: {fast_ids}')
     # slow_ids
     # = ['4', '5']
     client_combinations = generate_client_combinations(slow_ids, fast_ids)
@@ -272,7 +274,7 @@ class Offloading(FederatedAlgorithm):
             offloading_decisions = cl_algorithm(federator_state.performance_data, sim_matrix, federator_state.config.offloading_similarity_factor)
             alg_state['offloading_decisions'] = offloading_decisions
             federator_state.logger.info(f'Client ids are {client_ids}')
-            federator_state.logger.info(f'Performance data is {federator_state.performance_data}')
+            # federator_state.logger.info(f'Performance data is {federator_state.performance_data}')
             # pm_values = [x['pm'] for x in federator_state.performance_data.values()]
 
 
