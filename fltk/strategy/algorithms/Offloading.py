@@ -101,8 +101,8 @@ def cl_cost_function(decisions: List[dict], unused_clients: List[str], performan
     for d in decisions:
         c_s, c_f = calc_decision_completion_time(d['from'], d['to'], performance_data, d['when'])
 
-        print(f'Finding d["from"]={d["from"]} and d["to"]={d["to"]} in {clients}')
-        print(similarity_matrix)
+        # print(f'Finding d["from"]={d["from"]} and d["to"]={d["to"]} in {clients}')
+        # print(similarity_matrix)
         similarity = max(similarity_matrix[clients.index(d['from'])][clients.index(d['to'])], 0.01)
         # similarity = 0.01
         completion_times.append([[c_s, c_f], similarity])
@@ -139,10 +139,10 @@ def find_offloading_point(client_slow: dict, client_fast: dict) -> int:
 
         cost = max(c_s(d), c_f(d))
         if prev_cost and cost > prev_cost:
-            print(f'Found best cost at Delta ={d} with cost={cost}')
+            # print(f'Found best cost at Delta ={d} with cost={cost}')
             return prev_cost
         prev_cost = cost
-        print(f'Delta ={d} with cost={cost}')
+        # print(f'Delta ={d} with cost={cost}')
     return prev_cost
 
 def generate_decision(combinations, performance_data: dict):
@@ -151,7 +151,7 @@ def generate_decision(combinations, performance_data: dict):
     for slow_id, fast_id in combinations:
         all_client_ids.remove(slow_id)
         all_client_ids.remove(fast_id)
-        print(f'Offload from {slow_id} to {fast_id}')
+        # print(f'Offload from {slow_id} to {fast_id}')
         offloading_point = find_offloading_point(performance_data[slow_id], performance_data[fast_id])
         # slow_client = performance_data[slow_id]
         # fast_client = performance_data[fast_id]
