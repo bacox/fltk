@@ -85,6 +85,8 @@ class Config:
     # 1 Aggregate offloaded models using glue method
     # 2 Aggregate offloaded models using Part FedAvg and glue method
     offloading_option: int = 0
+    # Using a factor of 0 only matches on performance, not on data similarity
+    offloading_similarity_factor: float = 1
 
 
     def __init__(self, **kwargs) -> None:

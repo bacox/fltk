@@ -1,16 +1,13 @@
 import copy
 import time
-
 import torch
 import yaml
-
 from fltk.strategy.algorithms.Alg import FederatedAlgorithm
 from fltk.util.config import Config
-from typing import List
+from typing import List, Tuple
 from scipy.stats import wasserstein_distance
 import numpy as np
 from itertools import zip_longest
-
 from fltk.nets import get_net_split_point, get_net_feature_layers_names
 from fltk.strategy.aggregation.FedAvg import fed_avg
 
@@ -40,6 +37,24 @@ def normalize_class_distribution(class_amounts):
     return np.array(class_amounts) / norm
 
 
+def alter_dd_data(profiling_data: dict):
+    max_value = max([max(x['dd']) for x in profiling_data.values()])
+    for k, v in profiling_data.items():
+        new_dd = np.zeros(max_value+1)
+        for c, num in v['dd'].items():
+            new_dd[c] = num
+        v['dd'] = new_dd
+    return profiling_data
+
+
+def construct_similarity_matrix(performance_data: dict):
+    performance_data = alter_dd_data(performance_data)
+    for k, v in performance_data.items():
+        performance_data[k]['ndd'] = normalize_class_distribution(v['dd'])
+    return calc_similarity_matrix(performance_data)
+
+
+
 def sort_clients(clients: List[dict], reduced: bool = False):
     if reduced:
         return sorted(clients, key=lambda x: x['rect'], reverse=True)
@@ -57,13 +72,108 @@ def calc_compute_times(x: dict, client_id: str):
 
 
 def _mean_compute_time(perf_data: dict):
-    compute_times = [sum(x['pm']) * (x['rl'] + x['ps']) for x in perf_data.values()]
+    compute_times = []
+    for x in perf_data.values():
+        compute_times.append(node_complete_time(x))
+
+    # compute_times = [sum(x['pm']) * (x['rl'] + x['ps']) for x in perf_data.values()]
     return np.mean(compute_times)
 
 
-def cl_algorithm(performance_data: dict, similarity_matrix: np.ndarray):
-    '''
+def node_complete_time(client_perf_data: dict):
+    return sum(client_perf_data['pm']) * (client_perf_data['rl'] + client_perf_data['ps'])
 
+def calc_decision_completion_time(slow_id, fast_id, performance_data: dict, offloading_point: int) -> Tuple[int, int]:
+    client_slow = performance_data[slow_id]
+    client_fast = performance_data[fast_id]
+    def c_s(delta):
+        return (client_slow['rl'] - delta) * client_slow['cut'] + (delta * client_slow['rcut'])
+
+    def c_f(delta):
+        return (client_fast['rl'] * client_fast['cut']) + (delta * client_fast['cut'])
+    return c_s(offloading_point), c_f(offloading_point)
+
+def cl_cost_function(decisions: List[dict], unused_clients: List[str], performance_data: dict, similarity_matrix: np.ndarray, offloading_sim_factor: float):
+    # completion_times = [x for x in decisions.values()]
+    completion_times = []
+    calc_c_times = []
+    clients = list(performance_data.keys())
+    for d in decisions:
+        c_s, c_f = calc_decision_completion_time(d['from'], d['to'], performance_data, d['when'])
+
+        print(f'Finding d["from"]={d["from"]} and d["to"]={d["to"]} in {clients}')
+        print(similarity_matrix)
+        similarity = max(similarity_matrix[clients.index(d['from'])][clients.index(d['to'])], 0.01)
+        # similarity = 0.01
+        completion_times.append([[c_s, c_f], similarity])
+        calc_c_times.append(max(c_s, c_f) * similarity)
+    for unused_client in unused_clients:
+        u_client = performance_data[unused_client]
+        ect = u_client['rl'] * u_client['cut']
+        similarity = 0.01
+
+        completion_times.append([[ect],similarity])
+        calc_c_times.append(ect* similarity)
+    # Use list comprehension to flatmap the lists
+    c_times = [c_time for c_times in completion_times for c_time in c_times[0]]
+    # completion_times = [x[0] for x in completion_times]
+    similarities = [x[1] for x in completion_times]
+    return max(c_times) * max(offloading_sim_factor * sum(similarities), 0.01)
+
+
+def generate_client_combinations(slow_ids: List[str], fast_ids: List[str]):
+    import itertools
+    if len(slow_ids) > len(fast_ids):
+        return [list(zip(x, fast_ids)) for x in itertools.permutations(slow_ids, len(fast_ids))]
+    else:
+        return [list(zip(slow_ids, x)) for x in itertools.permutations(fast_ids, len(slow_ids))]
+
+
+def find_offloading_point(client_slow: dict, client_fast: dict) -> int:
+    def c_s(delta):
+        return (client_slow['rl'] - delta) * client_slow['cut'] + (delta * client_slow['rcut'])
+    def c_f(delta):
+        return (client_fast['rl'] * client_fast['cut']) + (delta * client_fast['cut'])
+    prev_cost = 0
+    for d in range(client_slow['rl']):
+
+        cost = max(c_s(d), c_f(d))
+        if prev_cost and cost > prev_cost:
+            print(f'Found best cost at Delta ={d} with cost={cost}')
+            return prev_cost
+        prev_cost = cost
+        print(f'Delta ={d} with cost={cost}')
+    return prev_cost
+
+def generate_decision(combinations, performance_data: dict):
+    all_client_ids = [x['id'] for x in performance_data.values()]
+    decisions = []
+    for slow_id, fast_id in combinations:
+        all_client_ids.remove(slow_id)
+        all_client_ids.remove(fast_id)
+        print(f'Offload from {slow_id} to {fast_id}')
+        offloading_point = find_offloading_point(performance_data[slow_id], performance_data[fast_id])
+        # slow_client = performance_data[slow_id]
+        # fast_client = performance_data[fast_id]
+
+        decision_id = f"{slow_id}-{fast_id}"
+        decisions.append({
+            'id': decision_id,
+            'from': slow_id,
+            'to': fast_id,
+            'when': offloading_point,
+            'response_id_to': f'O-{decision_id}-s',
+            'expected_complete_time': {
+                slow_id: 0,
+                fast_id: 0
+            }
+            # 'response_id_from': f'O-{decision_id}-w'
+        })
+    return decisions, all_client_ids
+
+
+def cl_algorithm(performance_data: dict, similarity_matrix: np.ndarray, offloading_sim_factor: float = 1):
+    '''
     :param performance_data: Dictionary indexed by the client_id containing the following properties:
     - profiling_data (estimates for each profiling phase (ff, fc, bc, bf))
     - Profiling size: number of local updates used for profiling
@@ -80,25 +190,54 @@ def cl_algorithm(performance_data: dict, similarity_matrix: np.ndarray):
         performance_data[key] = calc_compute_times(item, key)
     slow_clients = [v for k,v in performance_data.items() if sum(v['pm']) * (v['rl'] + v['ps']) > mct]
     fast_clients = [v for k,v in performance_data.items() if sum(v['pm']) * (v['rl'] + v['ps']) <= mct]
+
+    slow_ids = [x['id'] for x in slow_clients]
+    fast_ids = [x['id'] for x in fast_clients]
+    # slow_ids
+    # = ['4', '5']
+    client_combinations = generate_client_combinations(slow_ids, fast_ids)
+    potential_decisions_sets = []
+    for c in client_combinations:
+        decisions, unused_clients = generate_decision(c, performance_data)
+        decision_set_cost = cl_cost_function(decisions, unused_clients, performance_data, similarity_matrix, offloading_sim_factor)
+        potential_decisions_sets.append([decision_set_cost, decisions, unused_clients])
+
+    print(f'Number of available decisions: {len(potential_decisions_sets)}')
+    sorted_decisions_sets = sorted(potential_decisions_sets, key=lambda x: x[0])
     sorted_slow = sort_clients(slow_clients, reduced=True)
     sorted_fast = sort_clients(fast_clients, reduced=False)
     # min_matches = min(len(sorted_slow), len(sorted_fast))
+    best_decision = sorted_decisions_sets[0]
 
-    decisions = []
-
-    # For now stick with the reverse sorted matching
-    for item in zip_longest(sorted_slow, sorted_fast):
-        if not None in item:
-            decision_id = f"{item[0]['id']}-{item[1]['id']}"
-            decisions.append({
-                'id': decision_id,
-                'from': item[0]['id'],
-                'to': item[1]['id'],
-                'when': 0,
-                'response_id_to': f'O-{decision_id}-s',
-                # 'response_id_from': f'O-{decision_id}-w'
-            })
-    return decisions
+    # decisions = []
+    #
+    # unsused_clients = []
+    # # For now stick with the reverse sorted matching
+    # for item in zip_longest(sorted_slow, sorted_fast):
+    #     if not None in item:
+    #         decision_id = f"{item[0]['id']}-{item[1]['id']}"
+    #         decisions.append({
+    #             'id': decision_id,
+    #             'from': item[0]['id'],
+    #             'to': item[1]['id'],
+    #             'when': 0,
+    #             'response_id_to': f'O-{decision_id}-s',
+    #             'expected_complete_time': {
+    #                 item[0]['id']: 0,
+    #                 item[1]['id']: 0
+    #             }
+    #             # 'response_id_from': f'O-{decision_id}-w'
+    #         })
+    #     elif item[0] is None:
+    #         unsused_clients.append(item[1]['id'])
+    #     else:
+    #         # item[1] is none
+    #         unsused_clients.append(item[0]['id'])
+    #
+    #
+    # cost = cl_cost_function(decisions, unsused_clients, performance_data, similarity_matrix)
+    # print(f'The cost of these decisions is {cost}')
+    return best_decision[1]
 
 
 
@@ -129,8 +268,8 @@ class Offloading(FederatedAlgorithm):
             # We got all performance data
             # Make offloading decision
             # Make offloading calls
-
-            offloading_decisions = cl_algorithm(federator_state.performance_data, {})
+            sim_matrix = construct_similarity_matrix(federator_state.performance_data)
+            offloading_decisions = cl_algorithm(federator_state.performance_data, sim_matrix)
             alg_state['offloading_decisions'] = offloading_decisions
             federator_state.logger.info(f'Client ids are {client_ids}')
             federator_state.logger.info(f'Performance data is {federator_state.performance_data}')

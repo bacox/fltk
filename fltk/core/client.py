@@ -141,7 +141,7 @@ class Client(Node):
                             'ps': profiling_size,
                             'bs': self.config.batch_size,
                             'rl': number_of_training_samples - i,
-                            'dd': self.labels_dist[1].tolist()
+                            'dd': dict(zip(self.labels_dist[0].tolist(), self.labels_dist[1].tolist()))
                         }
                         self.message_async('federator', 'save_performance_metric', self.id, profiling_obj)
 
