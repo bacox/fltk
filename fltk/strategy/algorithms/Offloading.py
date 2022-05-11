@@ -183,7 +183,7 @@ def cl_algorithm(performance_data: dict, similarity_matrix: np.ndarray, offloadi
     :return: A set of offloading decisions. This should contain the nodes A and B that offload from (A)
     and offloads to (B). Also should contain the time when the model needs to be offloaded.
     '''
-
+    print(f'Starting offloading cl_algorithm with offloading_sim_factor={offloading_sim_factor}')
     # Mean compute time:
     mct = _mean_compute_time(performance_data)
     for key, item in performance_data.items():
@@ -269,7 +269,7 @@ class Offloading(FederatedAlgorithm):
             # Make offloading decision
             # Make offloading calls
             sim_matrix = construct_similarity_matrix(federator_state.performance_data)
-            offloading_decisions = cl_algorithm(federator_state.performance_data, sim_matrix)
+            offloading_decisions = cl_algorithm(federator_state.performance_data, sim_matrix, federator_state.config.offloading_similarity_factor)
             alg_state['offloading_decisions'] = offloading_decisions
             federator_state.logger.info(f'Client ids are {client_ids}')
             federator_state.logger.info(f'Performance data is {federator_state.performance_data}')
