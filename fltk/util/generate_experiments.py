@@ -105,10 +105,11 @@ def run(base_path: Path):
     print(exp_files)
     if run_docker:
         first_prefix = '--build'
+
         for exp_cfg_file in exp_files:
             for replication_id in range(replications):
                 cmd = f'export OPTIONAL_PARAMS="--prefix={replication_id}";export EXP_CONFIG_FILE="{exp_cfg_file}"; docker-compose --compatibility up {first_prefix};'
-                cmd_list.append(cmd)
+                cmd_list.append([replication_id, cmd])
                 first_prefix = ''
     else:
         print('Switching to direct mode')
@@ -116,10 +117,11 @@ def run(base_path: Path):
             for replication_id in range(replications):
                 # cmd = f'export OPTIONAL_PARAMS="--prefix={replication_id}";export EXP_CONFIG_FILE="{exp_cfg_file}"; docker-compose --compatibility up {first_prefix};'
                 cmd = f'python3 -m fltk single {exp_cfg_file} --prefix={replication_id}'
-                cmd_list.append(cmd)
+                cmd_list.append([replication_id, cmd])
 
-    [print(x) for x in cmd_list]
-    for cmd in cmd_list:
+    sorted_cmd_list = [x[1] for x in sorted(cmd_list, key=lambda x: x[0])]
+    [print(x) for x in sorted_cmd_list]
+    for cmd in sorted_cmd_list:
         print(f'Running cmd: "{cmd}"')
         os.system(cmd)
     print('Done')
