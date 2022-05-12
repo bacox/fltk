@@ -4,13 +4,13 @@ epochs: 2
 rounds: 50
 epochs_per_cycle: 1
 wait_for_clients: true
-net: Cifar10CNN
-dataset: cifar10
+net: MNISTCNN
+dataset: mnist
 # Use cuda is available; setting to false will force CPU
 cuda: false
 profiling_time: 100
 warmup_round: false
-output_location: 'output/exp_b18_offload_23_random_cifar10_iid'
+output_location: 'output/exp_b20_offload_23_random_mnist_iid'
 tensor_board_active: true
 clients_per_round: 4
 #node_groups:
