@@ -188,6 +188,7 @@ class Federator(Node):
         # time.sleep(10)
         self.client_load_data()
         self.get_client_data_sizes()
+        self.set_tau_eff()
         self.clients_ready()
         self.event_data.append(EventRecord('startup'))
         self.writer.add_scalar('Test Accuracy', 0, -1)
@@ -221,11 +222,12 @@ class Federator(Node):
 
     def set_tau_eff(self):
         total = sum(client.data_size for client in self.clients)
-        # responses = []
+        responses = []
+        self.logger.info('Init Tau Eff')
         for client in self.clients:
-            self.message(client.ref, Client.set_tau_eff, client.ref, total)
+            responses.append(self.message_async(client.ref, Client.set_tau_eff, total))
             # responses.append((client, _remote_method_async(Client.set_tau_eff, client.ref, total)))
-        # torch.futures.wait_all([x[1] for x in responses])
+        torch.futures.wait_all(responses)
 
     def test(self, net):
         start_time = time.time()

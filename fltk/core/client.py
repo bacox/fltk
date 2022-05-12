@@ -284,6 +284,7 @@ class Client(Node):
         train_duration = time_mark_between - start
         test_duration = end - time_mark_between
         if hasattr(self.optimizer, 'pre_communicate'):  # aka fednova or fedprox
+            self.logger.info('Calling pre_communicate function')
             self.optimizer.pre_communicate()
         for k, v in weights.items():
             weights[k] = v.cpu()
