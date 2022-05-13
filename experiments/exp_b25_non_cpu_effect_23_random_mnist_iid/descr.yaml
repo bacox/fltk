@@ -1,9 +1,29 @@
-# Individual configuration
-deadline: 500
-single_machine: false
-real_time: true
-algorithm_name: 'vanilla'
-
+---
+# Experiment configuration
+epochs: 1
+rounds: 100
+epochs_per_cycle: 1
+wait_for_clients: true
+net: MNISTCNN
+dataset: mnist
+# Use cuda is available; setting to false will force CPU
+cuda: false
+profiling_time: 100
+warmup_round: false
+output_location: 'output/exp_b21_non_cpu_effect_23_random_mnist_iid'
+tensor_board_active: true
+clients_per_round: 3
+#node_groups:
+#  slow: [1, 1]
+#  medium: [2, 2]
+#  fast: [3, 3]
+data_sampler: "uniform" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (default)
+data_sampler_args:
+  - 4     # label limit || q probability || alpha || unused
+  - 42    # random seed || random seed || random seed || unused
+num_clients: 11
+replications: 3
+deadline_time: 100
 deploy:
   docker:
     base_path: deploy/docker
@@ -57,5 +77,6 @@ deploy:
           num-cores: 1.0
           rank: 11
           stub-name: stub_default.yml
-        
-        
+
+
+

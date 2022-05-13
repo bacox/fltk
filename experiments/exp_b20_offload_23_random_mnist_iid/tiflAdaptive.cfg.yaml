@@ -2,4 +2,6 @@
 deadline: 500
 single_machine: false
 real_time: true
-algorithm_name: 'vanilla'
+algorithm_name: 'tifl'
+tifl_I: 3
+tifl_n_tiers: 3
