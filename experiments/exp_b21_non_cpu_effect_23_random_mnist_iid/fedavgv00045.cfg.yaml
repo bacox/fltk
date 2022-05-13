@@ -1,0 +1,61 @@
+# Individual configuration
+deadline: 500
+single_machine: false
+real_time: true
+algorithm_name: 'vanilla'
+
+deploy:
+  docker:
+    base_path: deploy/docker
+    federator:
+      stub-name: system_stub.yml
+      pin-cores: true
+      num-cores: 1
+    clients:
+      default:
+        - cpu-speed: 0.5
+          num-cores: 1.0
+          rank: 1
+          stub-name: stub_default.yml
+        - cpu-speed: 0.5
+          num-cores: 1.0
+          rank: 2
+          stub-name: stub_default.yml
+        - cpu-speed: 0.5
+          num-cores: 1.0
+          rank: 3
+          stub-name: stub_default.yml
+        - cpu-speed: 0.35
+          num-cores: 1.0
+          rank: 4
+          stub-name: stub_default.yml
+        - cpu-speed: 0.45
+          num-cores: 1.0
+          rank: 5
+          stub-name: stub_default.yml
+        - cpu-speed: 0.5
+          num-cores: 1.0
+          rank: 6
+          stub-name: stub_default.yml
+        - cpu-speed: 0.55
+          num-cores: 1.0
+          rank: 7
+          stub-name: stub_default.yml
+        - cpu-speed: 0.65
+          num-cores: 1.0
+          rank: 8
+          stub-name: stub_default.yml
+        - cpu-speed: 0.5
+          num-cores: 1.0
+          rank: 9
+          stub-name: stub_default.yml
+        - cpu-speed: 0.5
+          num-cores: 1.0
+          rank: 10
+          stub-name: stub_default.yml
+        - cpu-speed: 0.5
+          num-cores: 1.0
+          rank: 11
+          stub-name: stub_default.yml
+        
+        
