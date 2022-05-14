@@ -393,7 +393,10 @@ class Federator(Node):
 
         self.logger.info(f'Aggregating {len(self.response_store)} responses!')
         for k, v in self.response_store.items():
-            self.logger.info(f'[{k}] num samples: {v["response_data"][7]}')
+            if v['valid']:
+                self.logger.info(f'[{k}] num samples: {v["response_data"][7]}')
+            else:
+                self.logger.info(f'[{k}] has invalid state')
         # for response_id, item in self.response_store.items():
         #     self.logger.info(f'[{response_id}] -> {item}')
         #     if response_id.startswith(str(round_id)):
