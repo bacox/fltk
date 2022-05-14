@@ -17,7 +17,7 @@ clients_per_round: 3
 #  slow: [1, 1]
 #  medium: [2, 2]
 #  fast: [3, 3]
-data_sampler: "n-labels" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (default)
+data_sampler: "n labels" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (default)
 data_sampler_args:
   - 2     # label limit || q probability || alpha || unused
   - 42    # random seed || random seed || random seed || unused
