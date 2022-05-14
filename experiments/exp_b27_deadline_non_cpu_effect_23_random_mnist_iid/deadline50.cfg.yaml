@@ -1,5 +1,5 @@
 # Individual configuration
-deadline: 50
+deadline_time: 50
 single_machine: false
 real_time: true
 algorithm_name: 'deadline'
