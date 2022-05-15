@@ -10,7 +10,7 @@ dataset: mnist
 cuda: false
 profiling_time: 100
 warmup_round: false
-output_location: 'exp_b28_non_iid_effect_23_random_mnist_non_iid'
+output_location: 'output/exp_b28_non_iid_effect_23_random_mnist_non_iid'
 tensor_board_active: true
 clients_per_round: 3
 #node_groups:
