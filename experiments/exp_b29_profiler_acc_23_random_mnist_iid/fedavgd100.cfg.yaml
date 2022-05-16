@@ -1,0 +1,6 @@
+# Individual configuration
+single_machine: false
+real_time: true
+algorithm_name: 'vanilla'
+deadline_time: 100
+deadline: 100
