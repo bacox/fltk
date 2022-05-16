@@ -1,6 +1,8 @@
 # Individual configuration
 single_machine: false
 real_time: true
-algorithm_name: 'vanilla'
+algorithm_name: 'offloading'
+offloading_option: 2
+offloading_similarity_factor: 1
 deadline_time: 500
 deadline: 500
