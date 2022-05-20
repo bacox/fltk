@@ -137,19 +137,21 @@ class TestClient(Node):
 
 def get_variants():
 
-    batch_sizes = [16, 32, 64]
-    profiling_size = [0, 100]
+    # batch_sizes = [16, 32, 64]
+    batch_sizes = [16]
+    # profiling_size = [0, 100]
+    profiling_size = [0]
     # num_epochs = [1,2,4,8]
     num_epochs = [1]
     repetition_id = list(range(1))
     net_dicts = [
         [Nets.mnist_cnn, Dataset.mnist],
         [Nets.fashion_mnist_cnn, Dataset.fashion_mnist],
-        [Nets.fashion_mnist_resnet, Dataset.fashion_mnist],
-        # [Nets.cifar10_cnn, Dataset.cifar10],
-        # [Nets.cifar10_resnet, Dataset.cifar10],
-        # [Nets.cifar100_vgg, Dataset.cifar100],
-        # [Nets.cifar100_resnet, Dataset.cifar100],
+        # [Nets.fashion_mnist_resnet, Dataset.fashion_mnist],
+        [Nets.cifar10_cnn, Dataset.cifar10],
+        [Nets.cifar10_resnet, Dataset.cifar10],
+        [Nets.cifar100_vgg, Dataset.cifar100],
+        [Nets.cifar100_resnet, Dataset.cifar100],
     ]
 
     return list(product(net_dicts, batch_sizes, profiling_size, num_epochs, repetition_id))
