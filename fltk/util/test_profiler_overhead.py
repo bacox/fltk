@@ -149,9 +149,9 @@ def get_variants():
         [Nets.fashion_mnist_cnn, Dataset.fashion_mnist],
         # [Nets.fashion_mnist_resnet, Dataset.fashion_mnist],
         [Nets.cifar10_cnn, Dataset.cifar10],
-        [Nets.cifar10_resnet, Dataset.cifar10],
-        [Nets.cifar100_vgg, Dataset.cifar100],
-        [Nets.cifar100_resnet, Dataset.cifar100],
+        # [Nets.cifar10_resnet, Dataset.cifar10],
+        # [Nets.cifar100_vgg, Dataset.cifar100],
+        # [Nets.cifar100_resnet, Dataset.cifar100],
     ]
 
     return list(product(net_dicts, batch_sizes, profiling_size, num_epochs, repetition_id))
