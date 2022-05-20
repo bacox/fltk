@@ -137,10 +137,10 @@ class TestClient(Node):
 
 def get_variants():
 
-    # batch_sizes = [16, 32, 64]
-    batch_sizes = [16]
-    # profiling_size = [0, 100]
-    profiling_size = [0]
+    batch_sizes = [16, 32, 64]
+    # batch_sizes = [16]
+    profiling_size = [0, 100]
+    # profiling_size = [0]
     # num_epochs = [1,2,4,8]
     num_epochs = [1]
     repetition_id = list(range(1))
