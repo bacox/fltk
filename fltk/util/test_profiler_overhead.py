@@ -137,13 +137,13 @@ class TestClient(Node):
 
 def get_variants():
 
-    batch_sizes = [16, 32, 64]
-    # batch_sizes = [16]
-    profiling_size = [0, 100]
+    batch_sizes = [32, 64, 128]
+    # batch_sizes = [64]
+    profiling_size = [0, 50, 100, 500, 1000]
     # profiling_size = [0]
     # num_epochs = [1,2,4,8]
     num_epochs = [1]
-    repetition_id = list(range(1))
+    repetition_id = list(range(5))
     net_dicts = [
         [Nets.mnist_cnn, Dataset.mnist],
         [Nets.fashion_mnist_cnn, Dataset.fashion_mnist],
@@ -201,3 +201,9 @@ if __name__ == '__main__':
     for time_p, use_profiler, network, dataset, batch_size, profiling_size, num_epoch, repetition_id in collected_data:
         # print(f'Using the following values: n: {network}, d:{dataset}, b:{batch_size}, p:{profiling_size}, num:{num_epoch}, r:{repetition_id}')
         print(f'Time is {time_p} seconds with values -> profiler:{use_profiler}, n: {network}, d:{dataset}, b:{batch_size}, p:{profiling_size}, num:{num_epoch}, r:{repetition_id}')
+
+    import pandas as pd
+
+    df = pd.DataFrame(collected_data, columns=['time', 'use_profiler', 'network', 'dataset', 'batch_size', 'profiling_size', 'num_epoch', 'repetition_id'])
+
+    df.to_csv('profling_test_data.csv')
