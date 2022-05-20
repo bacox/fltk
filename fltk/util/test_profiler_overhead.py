@@ -4,17 +4,17 @@ from itertools import combinations, product
 
 from tqdm import tqdm
 
-from core.node import Node
-from datasets.loader_util import get_dataset
+from fltk.core.node import Node
+from fltk.datasets.loader_util import get_dataset
 from fltk.util.definitions import Dataset, Nets, LogLevel
 import numpy as np
 import torch
-from nets import get_net_split_point
+from fltk.nets import get_net_split_point
 from fltk.util.profilerV3 import Profiler
-from schedulers import MinCapableStepLR
-from strategy import get_optimizer
-from util.config import Config
-from util.log import getLogger
+from fltk.schedulers import MinCapableStepLR
+from fltk.strategy import get_optimizer
+from fltk.util.config import Config
+from fltk.util.log import getLogger
 
 
 def get_dataloader(dataset: Dataset, net: Nets):
