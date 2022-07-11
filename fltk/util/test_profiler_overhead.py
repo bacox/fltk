@@ -67,88 +67,91 @@ class TestClient(Node):
         network = self.nets.selected()
         running_loss = 0
         test_start_t = time.time()
+        profiling_obj = {'pm': []}
         if p.active:
             p.attach(network)
-        for i, (inputs, labels) in enumerate(self.dataset.get_train_loader(), 0):
-            s_time = time.time()
-            inputs, labels = inputs.to(device), labels.to(device)
+        for j in range(num_epochs):
+            for i, (inputs, labels) in enumerate(self.dataset.get_train_loader(), 0):
+                s_time = time.time()
+                inputs, labels = inputs.to(device), labels.to(device)
 
-            # zero the parameter gradients
-            self.optimizer.zero_grad()
-            if p.active:
-                p.signal_forward_start()
+                # zero the parameter gradients
+                self.optimizer.zero_grad()
+                if p.active:
+                    p.signal_forward_start()
 
-            # Calculate prediction
-            outputs = network(inputs)
-            # Determine loss
-            loss = self.loss_function(outputs, labels)
+                # Calculate prediction
+                outputs = network(inputs)
+                # Determine loss
+                loss = self.loss_function(outputs, labels)
 
-            if p.active:
-                # p.signal_backward_start()
-                p.signal_forward_end()
-                p.signal_backwards_start()
-            # Correct for errors
-            loss.backward()
-            self.optimizer.step()
-            if p.active:
-                p.signal_backwards_end()
-                p.step()
+                if p.active:
+                    # p.signal_backward_start()
+                    p.signal_forward_end()
+                    p.signal_backwards_start()
+                # Correct for errors
+                loss.backward()
+                self.optimizer.step()
+                if p.active:
+                    p.signal_backwards_end()
+                    p.step()
 
-            running_loss += loss.item()
-            e_time = time.time() - s_time
-            # This is here for debugging. can be removed later
-            if p.active:
-                p_data[iter] = e_time
-                iter += 1
+                running_loss += loss.item()
+                e_time = time.time() - s_time
+                # This is here for debugging. can be removed later
+                if p.active:
+                    p_data[iter] = e_time
+                    iter += 1
 
-            remaining_training_samples -= self.config.batch_size
-            # Mark logging update step
-            if i % self.config.log_interval == 0:
-                self.logger.debug(
-                    '[%s] [%d, %5d] loss: %.3f' % (self.id, 0, i, running_loss / self.config.log_interval))
-            #     final_running_loss = running_loss / self.config.log_interval
-            #     running_loss = 0.0
+                remaining_training_samples -= self.config.batch_size
+                # Mark logging update step
+                if i % self.config.log_interval == 0:
+                    self.logger.debug(
+                        '[%s] [%d, %5d] loss: %.3f' % (self.id, 0, i, running_loss / self.config.log_interval))
+                #     final_running_loss = running_loss / self.config.log_interval
+                #     running_loss = 0.0
 
-            # if limit_num_training_updates and i >= limit_num_training_updates:
-            #     break
+                # if limit_num_training_updates and i >= limit_num_training_updates:
+                #     break
 
-            if p.active:
-                if i == profiling_size - 1:
-                    p.active = False
-                    p.remove_all_handles()
-                    profiler_data = p.aggregate_values()
-                    # self.logger.info(f'Profiler data: {profiler_data}')
-                    # self.logger.info(f'{remaining_training_samples=}')
-                    #
-                    # self.logger.info(f'Profiler data (sum): {np.sum(profiler_data)} and {e_time} and {np.mean(p_data)}')
-                    # self.logger.info(
-                    #     f'Profiler data (%): {np.abs(np.mean(p_data) - np.sum(profiler_data)) / np.sum(profiler_data)}')
-                    profiling_obj = {
-                        'pm': profiler_data,
-                        'ps': profiling_size,
-                        'bs': self.config.batch_size,
-                        'rl': number_of_training_samples - i,
-                        # 'dd': dict(zip(self.labels_dist[0].tolist(), self.labels_dist[1].tolist()))
-                    }
-                    # self.message_async('federator', 'save_performance_metric', self.id, profiling_obj)
+                if p.active:
+                    if i == profiling_size - 1:
+                        p.active = False
+                        p.remove_all_handles()
+                        profiler_data = p.aggregate_values()
+                        # self.logger.info(f'Profiler data: {profiler_data}')
+                        # self.logger.info(f'{remaining_training_samples=}')
+                        #
+                        # self.logger.info(f'Profiler data (sum): {np.sum(profiler_data)} and {e_time} and {np.mean(p_data)}')
+                        # self.logger.info(
+                        #     f'Profiler data (%): {np.abs(np.mean(p_data) - np.sum(profiler_data)) / np.sum(profiler_data)}')
+                        profiling_obj = {
+                            'pm': profiler_data,
+                            'ps': profiling_size,
+                            'bs': self.config.batch_size,
+                            'rl': number_of_training_samples - i,
+                            # 'dd': dict(zip(self.labels_dist[0].tolist(), self.labels_dist[1].tolist()))
+                        }
+                        # self.message_async('federator', 'save_performance_metric', self.id, profiling_obj)
         test_stop_t = time.time()
 
-        return test_stop_t - test_start_t, use_profiler
+        return test_stop_t - test_start_t, use_profiler, profiling_obj['pm']
 
 def get_variants():
 
-    batch_sizes = [32, 64, 128]
+    # batch_sizes = [32, 64, 128]
     # batch_sizes = [64]
-    profiling_size = [0, 50, 100, 500, 1000]
-    # profiling_size = [0]
+    batch_sizes = [16]
+    # profiling_size = [0, 50, 100, 500, 1000]
+    profiling_size = [50, 100]
     # num_epochs = [1,2,4,8]
-    num_epochs = [1]
+    num_epochs = [1,2,3,4]
     repetition_id = list(range(5))
     net_dicts = [
         [Nets.mnist_cnn, Dataset.mnist],
-        [Nets.fashion_mnist_cnn, Dataset.fashion_mnist],
+        # [Nets.fashion_mnist_cnn, Dataset.fashion_mnist],
         # [Nets.fashion_mnist_resnet, Dataset.fashion_mnist],
-        [Nets.cifar10_cnn, Dataset.cifar10],
+        # [Nets.cifar10_cnn, Dataset.cifar10],
         # [Nets.cifar10_resnet, Dataset.cifar10],
         # [Nets.cifar100_vgg, Dataset.cifar100],
         # [Nets.cifar100_resnet, Dataset.cifar100],
@@ -181,29 +184,35 @@ if __name__ == '__main__':
         #  config, id: int, rank: int, world_size: int
         c = TestClient(config, 0, 1, world_size)
         # print('Starting run without profiler')
-        time_no_p, _ = c.run(False, profiling_size=profiling_size, num_epochs=num_epoch)
+        time_t_1 = time.time()
+        time_no_p, _, _ = c.run(False, profiling_size=profiling_size, num_epochs=num_epoch)
+        time_t_2 = time.time()
         # print('Starting run with profiler')
-        time_with_p, _ = c.run(True, profiling_size=profiling_size, num_epochs=num_epoch)
+        time_with_p, _, p_obj = c.run(True, profiling_size=profiling_size, num_epochs=num_epoch)
+        time_t_3 = time.time()
+
+        round_duration_no_p = time_t_2 - time_t_1
+        round_duration_with_p = time_t_3 - time_t_2
 
         # print(f'Time with profiler is {time_with_p} seconds')
         # print(f'Time no profiler is {time_no_p} seconds')
 
         # print(f'Result of : n: {network}, d:{dataset}, b:{batch_size}, p:{profiling_size}, num:{num_epoch}, r:{repetition_id}')
 
-        collected_data.append([time_with_p, True, network, dataset, batch_size, profiling_size, num_epoch, repetition_id])
-        collected_data.append([time_no_p, False, network, dataset, batch_size, profiling_size, num_epoch, repetition_id])
+        collected_data.append([time_with_p, True, network, dataset, batch_size, profiling_size, num_epoch, repetition_id, round_duration_with_p, sum(p_obj)])
+        collected_data.append([time_no_p, False, network, dataset, batch_size, profiling_size, num_epoch, repetition_id, round_duration_no_p, 0])
         idx += 1
         # dl = get_dataloader(d, n)
         # break
 
     print('Results')
     [print('='*15) for _ in range(3)]
-    for time_p, use_profiler, network, dataset, batch_size, profiling_size, num_epoch, repetition_id in collected_data:
+    for time_p, use_profiler, network, dataset, batch_size, profiling_size, num_epoch, repetition_id, round_duration, pm in collected_data:
         # print(f'Using the following values: n: {network}, d:{dataset}, b:{batch_size}, p:{profiling_size}, num:{num_epoch}, r:{repetition_id}')
-        print(f'Time is {time_p} seconds with values -> profiler:{use_profiler}, n: {network}, d:{dataset}, b:{batch_size}, p:{profiling_size}, num:{num_epoch}, r:{repetition_id}')
+        print(f'Time is {time_p} seconds with values -> profiler:{use_profiler}, n: {network}, d:{dataset}, b:{batch_size}, p:{profiling_size}, num:{num_epoch}, r:{repetition_id}, rd:{round_duration}')
 
     import pandas as pd
 
-    df = pd.DataFrame(collected_data, columns=['time', 'use_profiler', 'network', 'dataset', 'batch_size', 'profiling_size', 'num_epoch', 'repetition_id'])
+    df = pd.DataFrame(collected_data, columns=['time', 'use_profiler', 'network', 'dataset', 'batch_size', 'profiling_size', 'num_epoch', 'repetition_id', 'round_duration'])
 
-    df.to_csv('profling_test_data.csv')
+    df.to_csv('profling_test_data_smaller_rounds.csv')
