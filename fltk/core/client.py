@@ -61,6 +61,7 @@ class Client(Node):
     def train(self, round_id: int, num_epochs: int, use_profiler = True, limit_num_training_updates: int = 0):
         if not self.real_time:
             use_profiler = False
+        # use_profiler = False
         start_time = time.time()
 
         running_loss = 0.0

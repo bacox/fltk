@@ -9,7 +9,7 @@ from fltk.util.definitions import Dataset, LogLevel, Nets
 from dataclasses import dataclass
 from fltk.util.config import Config
 import pandas as pd
-from nets import get_net_by_name
+from fltk.nets import get_net_by_name
 
 model_dataset_match = {
     Nets.mnist_cnn: Dataset.mnist,
