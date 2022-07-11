@@ -1,8 +1,6 @@
 import time
 from typing import Tuple, Any
-
 import torch
-
 from fltk.core.node import Node
 from fltk.schedulers import MinCapableStepLR
 from fltk.strategy import get_optimizer
@@ -10,6 +8,7 @@ from fltk.util.config import Config
 from fltk.util.profilerV3 import Profiler
 from fltk.nets import get_net_split_point
 import numpy as np
+
 
 class Client(Node):
     running = False
