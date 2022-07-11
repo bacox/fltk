@@ -4,7 +4,7 @@ import numpy as np
 import yaml
 
 from strategy.algorithms.Offloading import cl_algorithm, calc_similarity_matrix, normalize_class_distribution, \
-    construct_similarity_matrix
+    construct_similarity_matrix, cl_algorithm_alternative
 
 
 def load_yaml_file(file_path: Path):
@@ -33,7 +33,8 @@ def test_cl_algorithm(profiling_data: dict):
     print(profiling_data)
     p, d = remove_decision_data(profiling_data)
     sim_matrix = construct_similarity_matrix(p)
-    decisions = cl_algorithm(p, sim_matrix)
+    # decisions = cl_algorithm(p, sim_matrix)
+    decisions = cl_algorithm_alternative(p, sim_matrix)
     print(decisions)
 
 

@@ -1,0 +1,45 @@
+---
+# Experiment configuration
+epochs: 2
+rounds: 2
+epochs_per_cycle: 1
+wait_for_clients: true
+net: FashionMNISTCNN
+dataset: fashion-mnist
+# Use cuda is available; setting to false will force CPU
+cuda: false
+profiling_time: 100
+warmup_round: false
+output_location: 'output/exp_a5_offload_test_random_fmnist'
+tensor_board_active: true
+clients_per_round: 2
+#node_groups:
+#  slow: [1, 1]
+#  medium: [2, 2]
+#  fast: [3, 3]
+sampler: "uniform" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (default)
+sampler_args:
+  - 0.07     # label limit || q probability || alpha || unused
+  - 42    # random seed || random seed || random seed || unused
+num_clients: 2
+replications: 1
+deadline_time: 100
+
+deploy:
+  docker:
+    base_path: deploy/docker
+    federator:
+      stub-name: system_stub.yml
+      pin-cores: true
+      num-cores: 1
+    clients:
+      default:
+        - cpu-speed: 1
+          num-cores: 1.0
+          rank: 1
+          stub-name: stub_default.yml
+        - cpu-speed: 1
+          num-cores: 1.0
+          rank: 2
+          stub-name: stub_default.yml
+

@@ -278,7 +278,7 @@ def gen_distribution_2(name, params):
         args.net_name = Nets.mnist_cnn
 
         args.data_sampler = DataSampler.n_labels
-        args.data_sampler_args = [2 , 42]
+        args.data_sampler_args = [6, 42]
         args.world_size = world_size
         args.rank = rank
         dataset: DistDataset = available_datasets()[Dataset.mnist]

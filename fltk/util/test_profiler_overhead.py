@@ -135,7 +135,7 @@ class TestClient(Node):
                         # self.message_async('federator', 'save_performance_metric', self.id, profiling_obj)
         test_stop_t = time.time()
 
-        return test_stop_t - test_start_t, use_profiler, profiling_obj['pm'], number_of_training_samples
+        return test_stop_t - test_start_t, use_profiler, profiling_obj['pm']
 
 def get_variants():
 
@@ -144,10 +144,9 @@ def get_variants():
     batch_sizes = [16]
     # profiling_size = [0, 50, 100, 500, 1000]
     profiling_size = [50, 100]
-    # profiling_size = [100]
     # num_epochs = [1,2,4,8]
-    num_epochs = [1,2]
-    repetition_id = list(range(2))
+    num_epochs = [1,2,3,4]
+    repetition_id = list(range(5))
     net_dicts = [
         [Nets.mnist_cnn, Dataset.mnist],
         # [Nets.fashion_mnist_cnn, Dataset.fashion_mnist],
@@ -186,10 +185,10 @@ if __name__ == '__main__':
         c = TestClient(config, 0, 1, world_size)
         # print('Starting run without profiler')
         time_t_1 = time.time()
-        time_no_p, _, _, _ = c.run(False, profiling_size=profiling_size, num_epochs=num_epoch)
+        time_no_p, _, _ = c.run(False, profiling_size=profiling_size, num_epochs=num_epoch)
         time_t_2 = time.time()
         # print('Starting run with profiler')
-        time_with_p, _, p_obj, nu = c.run(True, profiling_size=profiling_size, num_epochs=num_epoch)
+        time_with_p, _, p_obj = c.run(True, profiling_size=profiling_size, num_epochs=num_epoch)
         time_t_3 = time.time()
 
         round_duration_no_p = time_t_2 - time_t_1
@@ -200,20 +199,20 @@ if __name__ == '__main__':
 
         # print(f'Result of : n: {network}, d:{dataset}, b:{batch_size}, p:{profiling_size}, num:{num_epoch}, r:{repetition_id}')
 
-        collected_data.append([time_with_p, True, network, dataset, batch_size, profiling_size, num_epoch, repetition_id, round_duration_with_p, sum(p_obj), nu])
-        collected_data.append([time_no_p, False, network, dataset, batch_size, profiling_size, num_epoch, repetition_id, round_duration_no_p, 0, nu])
+        collected_data.append([time_with_p, True, network, dataset, batch_size, profiling_size, num_epoch, repetition_id, round_duration_with_p, sum(p_obj)])
+        collected_data.append([time_no_p, False, network, dataset, batch_size, profiling_size, num_epoch, repetition_id, round_duration_no_p, 0])
         idx += 1
         # dl = get_dataloader(d, n)
         # break
 
     print('Results')
     [print('='*15) for _ in range(3)]
-    for time_p, use_profiler, network, dataset, batch_size, profiling_size, num_epoch, repetition_id, round_duration, pm, nu in collected_data:
+    for time_p, use_profiler, network, dataset, batch_size, profiling_size, num_epoch, repetition_id, round_duration, pm in collected_data:
         # print(f'Using the following values: n: {network}, d:{dataset}, b:{batch_size}, p:{profiling_size}, num:{num_epoch}, r:{repetition_id}')
         print(f'Time is {time_p} seconds with values -> profiler:{use_profiler}, n: {network}, d:{dataset}, b:{batch_size}, p:{profiling_size}, num:{num_epoch}, r:{repetition_id}, rd:{round_duration}')
 
     import pandas as pd
 
-    df = pd.DataFrame(collected_data, columns=['time', 'use_profiler', 'network', 'dataset', 'batch_size', 'profiling_size', 'num_epoch', 'repetition_id', 'round_duration', 'pm', 'num_updates'])
+    df = pd.DataFrame(collected_data, columns=['time', 'use_profiler', 'network', 'dataset', 'batch_size', 'profiling_size', 'num_epoch', 'repetition_id', 'round_duration'])
 
     df.to_csv('profling_test_data_smaller_rounds.csv')

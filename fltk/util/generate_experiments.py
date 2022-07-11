@@ -1,6 +1,8 @@
 import copy
 from pathlib import Path
 import os
+
+import numpy as np
 import yaml
 from fltk.util.generate_docker_compose_2 import generate_compose_file, generate_compose_file_from_dict
 
@@ -164,6 +166,16 @@ def generate_tifl_2x6_uniform():
     print(cpus)
     build_client_specs(speeds.tolist(), cpus.tolist())
 
+
+def generate_single_based_on_list(speeds: list):
+    cpus = np.ones(len(speeds))
+    speeds = np.array(speeds)
+    name = f'{np.mean(speeds)}-{np.var(speeds)}-client_dump.yaml'
+    print(speeds, name)
+    print(speeds)
+    print(cpus)
+    build_client_specs(speeds.tolist(), cpus.tolist(), name)
+
 def generate_tifl_23_random():
     import numpy as np
     num = 23
@@ -193,7 +205,7 @@ def generate_equal(num: int):
     print(cpus)
     build_client_specs(speeds.tolist(), cpus.tolist())
 
-def build_client_specs(speeds, cpus):
+def build_client_specs(speeds, cpus, file_name: str='client_dump.yaml'):
     clients = []
     for idx, (speed, num_cpu) in enumerate(zip(speeds, cpus)):
         print(f'Item {idx}, s: {speed}, c: {num_cpu}')
@@ -206,7 +218,7 @@ def build_client_specs(speeds, cpus):
         clients.append(obj)
 
     print(yaml.dump(clients))
-    with open('client_dump.yaml', 'w+') as file:
+    with open(file_name, 'w+') as file:
         yaml.dump(clients, file)
 
 def generate_client_specs():
@@ -220,8 +232,17 @@ if __name__ == '__main__':
     print('Generate client set')
     # generate_client_specs()
     # generate_equal(6)
-    generate_tifl_23_uniform()
-    generate_tifl_23_random()
+    # generate_tifl_23_uniform()
+    # generate_tifl_23_random()
+
+    a0 = [0.05, 0.15, 0.25, 0.35, 0.45, 0.5, 0.55, 0.65, 0.75, 0.85, 0.95]
+    a1 = [0.5, 0.15, 0.25, 0.35, 0.45, 0.5, 0.55, 0.65, 0.75, 0.85, 0.5]
+    a2 = [0.5, 0.5, 0.25, 0.35, 0.45, 0.5, 0.55, 0.65, 0.75, 0.5, 0.5]
+    a3 = [0.5, 0.5, 0.5, 0.35, 0.45, 0.5, 0.55, 0.65, 0.5, 0.5, 0.5]
+    a4 = [0.5, 0.5, 0.5, 0.5, 0.45, 0.5, 0.55, 0.5, 0.5, 0.5, 0.5]
+    a5 = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    for a in [a0, a1, a2, a3, a4, a5]:
+        generate_single_based_on_list(a)
     # generate_tifl_2x6_uniform()
     # generate_linear(6)
 

@@ -4,12 +4,13 @@ import torch
 import yaml
 from fltk.strategy.algorithms.Alg import FederatedAlgorithm
 from fltk.util.config import Config
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from scipy.stats import wasserstein_distance
 import numpy as np
 from itertools import zip_longest
 from fltk.nets import get_net_split_point, get_net_feature_layers_names
 from fltk.strategy.aggregation.FedAvg import fed_avg
+from dataclasses import dataclass
 
 
 def client_matching(client_data, performance_data):
@@ -170,6 +171,54 @@ def generate_decision(combinations, performance_data: dict):
             # 'response_id_from': f'O-{decision_id}-w'
         })
     return decisions, all_client_ids
+
+@dataclass
+class ProxyClient:
+    id: str
+    data: dict
+    preference_order: List[str]
+    choice: Union[str, None]
+    locked: bool
+
+@dataclass
+class ProxyChoice:
+    id: str
+    data: dict
+    chosen: Union[str, None]
+    locked: bool
+
+def cl_algorithm_alternative(performance_data: dict, similarity_matrix: np.ndarray, offloading_sim_factor: float = 1):
+    print(f'Starting offloading cl_algorithm with offloading_sim_factor={offloading_sim_factor}')
+    # Mean compute time:
+    mct = _mean_compute_time(performance_data)
+    for key, item in performance_data.items():
+        performance_data[key] = calc_compute_times(item, key)
+    slow_clients = [v for k, v in performance_data.items() if sum(v['pm']) * (v['rl'] + v['ps']) > mct]
+    fast_clients = [v for k, v in performance_data.items() if sum(v['pm']) * (v['rl'] + v['ps']) <= mct]
+
+    sorted_slow = sort_clients(slow_clients, reduced=True)
+    sorted_fast = sort_clients(fast_clients, reduced=False)
+
+    def create_initial_choice_set(slow_clients: List[dict]):
+        return [ProxyClient(x['id'], x, [], None, False) for x in slow_clients]
+
+    available_choices = [ProxyChoice(x['id'], x, None, False) for x in fast_clients]
+    #
+    # for client_slow in sorted_slow:
+    #     print(client_slow)
+    initial_set = create_initial_choice_set(slow_clients)
+    # for item in zip_longest(sorted_slow, sorted_fast):
+    #     print(item[0]['id'], item[1]['id'])
+    # for proxy_client in initial_set:
+        # print(proxy_client)
+
+    for i in initial_set:
+        for c in [x for x in available_choices if not x.locked]:
+            offloading_point = find_offloading_point(i.data, c.data)
+            est_i, est_c = calc_decision_completion_time(i.id, c.id, performance_data, offloading_point)
+            print(f'{i.id} -> {c.id} = ({est_i},{est_c})')
+        # print(i)
+    print('Done')
 
 
 def cl_algorithm(performance_data: dict, similarity_matrix: np.ndarray, offloading_sim_factor: float = 1):
