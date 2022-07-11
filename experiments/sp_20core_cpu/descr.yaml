@@ -1,0 +1,108 @@
+---
+# Experiment configuration
+epochs: 1
+rounds: 20
+epochs_per_cycle: 1
+wait_for_clients: true
+net: MNISTCNN
+dataset: mnist
+# Use cuda is available; setting to false will force CPU
+cuda: false
+warmup_round: false
+output_location: 'output/sp_20core_cpu'
+tensor_board_active: true
+clients_per_round: 20
+data_sampler: "uniform" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (default)
+data_sampler_args:
+  - 4     # label limit || q probability || alpha || unused
+  - 42    # random seed || random seed || random seed || unused
+num_clients: 20
+replications: 3
+deploy:
+  docker:
+    base_path: deploy/docker
+    federator:
+      stub-name: system_stub.yml
+      pin-cores: true
+      num-cores: 1
+    clients:
+      default:
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 1
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 2
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 3
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 4
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 5
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 6
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 7
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 8
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 9
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 10
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 11
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 12
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 13
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 14
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 15
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 16
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 17
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 18
+          stub-name: stub_default.yml
+        - cpu-speed: 1.0
+          num-cores: 1.0
+          rank: 19
+          stub-name: stub_default.yml
+
+
+

@@ -1,25 +1,20 @@
 ---
 # Experiment configuration
-total_epochs: 3
-rounds: 2
+total_epochs: 1
+rounds: 20
 epochs_per_cycle: 1
 wait_for_clients: true
 net: MNISTCNN
 dataset: mnist
 # Use cuda is available; setting to false will force CPU
 cuda: true
-profiling_time: 100
 warmup_round: false
-output_location: 'output/example_cuda'
+output_location: 'output/sp_gpu'
 tensor_board_active: true
-clients_per_round: 2
-node_groups:
-  slow: [1, 1]
-  medium: [2, 2]
-  fast: [3, 3]
-sampler: "uniform" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (default)
+sampler: "uniform"
 sampler_args:
   - 0.07     # label limit || q probability || alpha || unused
   - 42    # random seed || random seed || random seed || unused
-num_clients: 2
-replications: 1
+num_clients: 20
+clients_per_round: 20
+replications: 3
