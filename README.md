@@ -8,6 +8,26 @@ This repository contains the code and experiments for the paper:
 >
 > [Middleware 2022](https://middleware-conf.github.io/2022/)
 
+If you find this code useful in your research, please consider citing:
+```bibtex
+@inproceedings{10.1145/3528535.3565238,
+    author = {Cox, Bart and Chen, Lydia Y. and Decouchant, J\'{e}r\'{e}mie},
+    title = {Aergia: Leveraging Heterogeneity in Federated Learning Systems},
+    year = {2022},
+    isbn = {9781450393409},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    url = {https://doi.org/10.1145/3528535.3565238},
+    doi = {10.1145/3528535.3565238},
+    booktitle = {Proceedings of the 23rd ACM/IFIP International Middleware Conference},
+    pages = {107–120},
+    numpages = {14},
+    keywords = {task offloading, federated learning, stragglers},
+    location = {Quebec, QC, Canada},
+    series = {Middleware '22}
+}
+```
+
 This toolkit is can be used to run Federated Learning experiments.
 Pytorch Distributed ([docs](https://pytorch.org/tutorials/beginner/dist_overview.html)) is used in this project.
 The goal if this project is to launch Federated Learning nodes in truly distribution fashion.
