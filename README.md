@@ -3,6 +3,11 @@
 [![Python 3.6](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Python 3.6](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/)
 
+This repository contains the code and experiments for the paper:
+> [Aergia: leveraging heterogeneity in federated learning systems](https://dl.acm.org/doi/abs/10.1145/3528535.3565238)
+>
+> [Middleware 2022](https://middleware-conf.github.io/2022/)
+
 This toolkit is can be used to run Federated Learning experiments.
 Pytorch Distributed ([docs](https://pytorch.org/tutorials/beginner/dist_overview.html)) is used in this project.
 The goal if this project is to launch Federated Learning nodes in truly distribution fashion.
