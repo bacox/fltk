@@ -8,7 +8,7 @@ title: >-
 message: >-
   Proceedings of the 23rd ACM/IFIP International
   Middleware Conference
-type: inproceedings
+type: conference-paper
 authors:
   - given-names: Bart
     family-names: Cox
