@@ -102,18 +102,31 @@ When running in docker containers the following dependencies need to be installe
 
 ## Install
 ```bash
-python3 setup.py install
+python3 -m pip install -r requirements.txt
 ```
 
 ### Load models
 ```bash
-python3 fltk/util/default_models.py
+python3 -m fltk.util.default_models
 ```
 
 ## Examples
 <details><summary>Show Examples</summary>
 
 <p>
+
+
+### Docker compose
+**Note:** Make sure docker and docker-compose are installed.
+
+Generate docker configuration
+```bash
+python3 -m fltk util-generate experiments/example_docker/
+```
+Run example experiment
+```bash
+python3 -m fltk util-run experiments/example_docker/
+```
 
 ### Single machine (Native)
 
@@ -141,16 +154,7 @@ os.environ['TP_SOCKET_IFNAME'] = 'wlo1'
 ```
 Use `ifconfig` to find the name of the interface name on your machine.
 
-### Docker Compose
-1. Make sure docker and docker-compose are installed.
-2. Generate a `docker-compose.yml` file for your experiment. You can use the script `generate_docker_compose.py` for this.
-   From the root folder: ```python3 fltk/util/generate_docker_compose.py 4``` to generate a system with 4 clients.
-   Feel free to change/extend `generate_docker_compose.py` for your own need.
-   A `docker-compose.yml` file is created in the root folder.
-3. Run docker-compose to start the system:
-    ```bash
-    docker-compose up
-    ```
+
 ### Google Cloud Platform
 See Manual on brightspace
 
