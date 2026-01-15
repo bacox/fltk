@@ -1,16 +1,25 @@
-# FLTK - Federated Learning Toolkit
+# FLTK — Federated Learning Toolkit
 
 [![License](https://img.shields.io/badge/license-BSD-blue.svg)](LICENSE)
 [![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/)
 
 ![FLTK](resources/fltk.png)
-This repository contains the code and experiments for the paper:
-> [Aergia: leveraging heterogeneity in federated learning systems](https://dl.acm.org/doi/abs/10.1145/3528535.3565238)
->
-> [Middleware 2022](https://middleware-conf.github.io/2022/)
 
-If you find this code useful in your research, please consider citing:
+FLTK is a research-oriented toolkit for designing and running Federated Learning (FL) experiments.
+It is built on top of PyTorch Distributed ([documentation](https://pytorch.org/tutorials/beginner/dist_overview.html)) and is designed to support *truly distributed* federated systems.
+The toolkit has been tested on Ubuntu 20.04 with Python 3.7 and 3.8.
+
+
+This repository contains the code and experiments for the paper:
+
+Aergia: Leveraging Heterogeneity in Federated Learning Systems
+Bart Cox, Lydia Y. Chen, Jérémy Decouchant
+*Proceedings of the 23rd ACM/IFIP International Middleware Conference (Middleware 2022)*
+[Paper link](https://dl.acm.org/doi/abs/10.1145/3528535.3565238)
+
+If you use this code in your research, please consider citing:
+
 ```bibtex
 @inproceedings{10.1145/3528535.3565238,
     author = {Cox, Bart and Chen, Lydia Y. and Decouchant, J\'{e}r\'{e}mie},
@@ -30,24 +39,14 @@ If you find this code useful in your research, please consider citing:
 }
 ```
 
-This toolkit is can be used to run Federated Learning experiments.
-Pytorch Distributed ([docs](https://pytorch.org/tutorials/beginner/dist_overview.html)) is used in this project.
-The goal if this project is to launch Federated Learning nodes in truly distribution fashion.
-
-FLTK is a research-oriented toolkit for designing and running **Federated Learning (FL)** experiments.
-It is built on top of **PyTorch Distributed** ([documentation](https://pytorch.org/tutorials/beginner/dist_overview.html)) and is designed to support *truly distributed* federated systems.
-
-The toolkit has been tested on **Ubuntu 20.04** with **Python 3.7 and 3.8**.
-
----
 
 ## Design overview
 
-PyTorch Distributed operates using a **world size** and **process ranks**, where ranks range from `0` to `world_size - 1`.
+PyTorch Distributed operates using a world size and process ranks, where ranks range from `0` to `world_size - 1`.
 In FLTK:
 
-* Rank `0` is typically assigned to the **federator (server)**
-* Ranks `1` to `world_size - 1` correspond to **clients**
+* Rank `0` is typically assigned to the federator (server)
+* Ranks `1` to `world_size - 1` correspond to clients
 
 ### Federated learning protocol
 
@@ -63,9 +62,9 @@ A typical FL round proceeds as follows:
 
 ### Key assumptions and constraints
 
-* Client data is **never shared**
-* Client data distributions are **non-IID**
-* Client hardware can be **heterogeneous**
+* Client data is never shared
+* Client data distributions are non-IID
+* Client hardware can be heterogeneous
 * Device location affects communication latency and bandwidth
 * Communication overhead can be significant
 
@@ -215,10 +214,5 @@ python3 -m fltk single configs/experiment.yaml --rank=1
 
 ## Known issues
 
-<<<<<<< HEAD
 * GPU support is currently unavailable in Docker and Docker Compose
 * The first training epoch can be significantly slower (6×–8×)
-=======
-* Currently, there is no GPU support docker containers (or docker compose)
-* First epoch only can be slow (6x - 8x slower)
->>>>>>> feeb1cfdfeea3a09c141d494ec9c184e758b73fa
