@@ -3,6 +3,8 @@
 [![Python 3.6](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Python 3.6](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/)
 
+![FLTK](resources/fltk.png)
+
 This toolkit is can be used to run Federated Learning experiments.
 Pytorch Distributed ([docs](https://pytorch.org/tutorials/beginner/dist_overview.html)) is used in this project.
 The goal if this project is to launch Federated Learning nodes in truly distribution fashion.
@@ -117,7 +119,7 @@ python3 -m fltk.util.default_models
 
 
 ### Docker compose
-**Note:** Make sure docker and docker-compose are installed.
+**Note:** Make sure `docker` and `docker compose` are installed.
 
 Generate docker configuration
 ```bash
