@@ -65,7 +65,7 @@ class Profiler:
 
         kids = get_children(module)
 
-        print(module)
+        # print(module)
 
         # Core idea is to find the following segments
         # ff = network start <-> pre_forward_hook(split + 1)

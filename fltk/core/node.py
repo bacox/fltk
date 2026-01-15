@@ -1,5 +1,6 @@
 import copy
 import os
+from pathlib import Path
 from typing import Callable, Any
 import torch
 from torch.distributed import rpc
@@ -7,6 +8,7 @@ from fltk.datasets.loader_util import get_dataset
 from fltk.nets import get_net_by_name
 from fltk.util.config import Config
 from fltk.util.log import getLogger
+import time
 
 # Global dictionary to enable peer to peer communication between clients
 global_vars = {}
@@ -31,12 +33,14 @@ class Nets(dict):
         self.default = self.__default__
 
     def select(self, key: str):
+        print(f'Setting default key to {key}')
         self.default = key
 
     def reset(self):
         self.default = self.__default__
 
     def selected(self):
+
         return self.get(self.default)
 
     def remove_model(self, key):
@@ -61,10 +65,15 @@ class Node:
     # net: Any
     nets: Nets
     dataset: Any
-    logger = getLogger(__name__)
 
     def __init__(self, id: int, rank: int, world_size: int, config: Config):
+        self.logger = getLogger(__name__, config.log_level)
         self.config = config
+        prefix_text = ''
+        if config.replication_id:
+            prefix_text = f'_r{config.replication_id}'
+        config.output_path = Path(config.output_path) / f'{config.experiment_prefix}{prefix_text}'
+
         self.device = torch.device("cpu")
         self.id = id
         self.rank = rank
@@ -90,11 +99,20 @@ class Node:
             config.world_size = world_size
         self.logger.info(f'world size = {config.world_size} with rank={config.rank}')
         self.dataset = get_dataset(config.dataset_name)(config)
+        self.labels_dist = []
+        for _, label in self.dataset.get_train_loader():
+            self.labels_dist.append(label)
+        # self.labels_dist = torch.unique(torch.stack(self.labels_dist), return_counts=True)
+        self.labels_dist = torch.unique(torch.cat(self.labels_dist, dim=0), return_counts=True)
         self.finished_init = True
         self.logger.info('Done with init')
 
     def is_ready(self):
         return self.finished_init
+
+    def get_class_distribution(self):
+        self.dataset.get_train_loader()
+        pass
 
     @staticmethod
     def _receive(method: Callable, sender: str, *args, **kwargs):
@@ -110,6 +128,9 @@ class Node:
         :return:
         """
         global global_vars
+        while 'self' not in global_vars:
+            print('Warning: node is not yet online!')
+            time.sleep(1)
         global_self = global_vars['self']
         if type(method) is str:
             method = getattr(global_self, method)
@@ -180,6 +201,10 @@ class Node:
         :param new_params: New weights for the neural network
         :type new_params: dict
         """
+        # if key != '__default__':
+        #     print("Model's state_dict:")
+        #     for param_tensor in copy.deepcopy(new_params):
+        #         print(param_tensor, "\t", copy.deepcopy(new_params)[param_tensor].size())
         self.nets[key].load_state_dict(copy.deepcopy(new_params), strict=True)
 
     def message(self, other_node: str, method: Callable, *args, **kwargs) -> torch.Future:
@@ -206,8 +231,14 @@ class Node:
             args_list = [method, self.id] + list(args)
             return rpc.rpc_async(other_node, func, args=args_list,  kwargs=kwargs)
         # Wrap inside a future to keep the logic the same
+
         future = torch.futures.Future()
-        future.set_result(method(other_node, *args, **kwargs))
+        if type(method) is str:
+            method = getattr(other_node, method)
+            future.set_result(method(*args, **kwargs))
+        else:
+            future.set_result(method(other_node, *args, **kwargs))
+        # future.set_result(method(other_node, *args, **kwargs))
         return future
 
     def freeze_layers(self, net, until: int):

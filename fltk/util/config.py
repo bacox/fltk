@@ -8,7 +8,7 @@ import torch
 import yaml
 from fltk.util.log import getLogger
 
-from fltk.util.definitions import Dataset, Nets, DataSampler, Optimizations, LogLevel, Aggregations
+from fltk.util.definitions import Dataset, Nets, DataSampler, Optimizations, LogLevel, Aggregations, Algorithm
 
 
 @dataclass
@@ -22,7 +22,7 @@ class Config:
     momentum: float = 0.1
     cuda: bool = False
     shuffle: bool = False
-    log_interval: int = 10
+    log_interval: int = 50
     scheduler_step_size: int = 50
     scheduler_gamma: float = 0.5
     min_lr: float = 1e-10
@@ -65,8 +65,29 @@ class Config:
 
     # Save data in append mode. Thereby flushing on every append to file.
     # This could be useful when a system is likely to crash midway an experiment
-    save_data_append: bool = False
+    save_data_append: bool = True
     output_path: Path = Path('output_test_2')
+
+    algorithm_name: Algorithm = Algorithm.vanilla
+
+    ## Algorithm specific parameters:
+    # All parameters specific to an algorithm are prefixed with the name of the algorithm
+    # TiFL specific configuration
+    tifl_I: int = None # cycle when to update the tier probabilities
+    tifl_n_tiers: int = 2 # Number of tiers used by the TiFL algorithm
+
+    # Parameters for deadline based algorithms such as Deadline and Offloading
+    deadline_time: float = 0
+
+    # Parameters for the Offloading based algorithms
+    # Choices:
+    # 0 Aggregate offloaded models using FedAvg
+    # 1 Aggregate offloaded models using glue method
+    # 2 Aggregate offloaded models using Part FedAvg and glue method
+    offloading_option: int = 0
+    # Using a factor of 0 only matches on performance, not on data similarity
+    offloading_similarity_factor: float = 1
+
 
     def __init__(self, **kwargs) -> None:
         enum_fields = [x for x in self.__dataclass_fields__.items() if isinstance(x[1].type, Enum) or isinstance(x[1].type, EnumMeta)]
@@ -111,17 +132,17 @@ class Config:
         return self.loss_function
 
     @classmethod
-    def FromYamlFile(cls, path: Path):
-        getLogger(__name__).debug(f'Loading yaml from {path.absolute()}')
+    def FromYamlFile(cls, path: Path, loglevel = LogLevel.DEBUG):
+        getLogger(__name__, loglevel).debug(f'Loading yaml from {path.absolute()}')
         with open(path) as file:
             content = yaml.safe_load(file)
             for k, v in content.items():
-                getLogger(__name__).debug(f'Inserting key "{k}" into config')
+                getLogger(__name__, loglevel).debug(f'Inserting key "{k}" into config')
             return cls(**content)
 
     @classmethod
     def ToYamlFile(cls, config, path: Path):
-        getLogger(__name__).debug(f'Saving config to {path.absolute()}')
+        getLogger(__name__, config.log_level).debug(f'Saving config to {path.absolute()}')
         with open(path, mode='w+') as file:
             dict_data = copy.deepcopy(config.__dict__)
             enum_fields = [x for x in config.__dataclass_fields__.items() if

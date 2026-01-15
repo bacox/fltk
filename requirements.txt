@@ -6,14 +6,15 @@ torch==1.10.1
 torchvision==0.11.2
 scipy==1.4.1
 h5py==2.10.0
-requests
-pyyaml
-torchsummary
-dataclass-csv
-tensorboard
-seaborn
-matplotlib
-google-api-python-client
-google-auth-httplib2
+requests==2.32.4
+pyyaml==6.0.3
+torchsummary==1.5.1
+dataclass-csv==1.4.0
+tensorboard==2.14.0
+seaborn==0.12.2
+matplotlib==3.7.5
+google-api-python-client==2.188.0
+google-auth-httplib2==0.3.0
 google-auth-oauthlib >= 0.4.1
-spacy
+spacy==2.3.9
+tabulate==0.9.0

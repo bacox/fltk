@@ -1,7 +1,7 @@
 import time
 from fltk.core.client import Client
 
-
+# This is an old offloading implementation
 def deadline_callable(self_obj, state: dict, deadline, training_start_time) -> bool:
     if time.time() > training_start_time + deadline:
         self_obj.logger.warning('Deadline has passed!')

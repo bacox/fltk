@@ -6,13 +6,14 @@ from pathlib import Path
 from fltk.core.federator import Federator
 from fltk.util.config import Config
 from fltk.util.generate_experiments import generate, run
+from fltk.util.definitions import LogLevel
 
 
 def run_single(config_path: Path, prefix: str = None):
     # We can iterate over all the experiments in the directory and execute it, as long as the system remains the same!
     # System = machines and its configuration
     print(config_path)
-    config = Config.FromYamlFile(config_path)
+    config = Config.FromYamlFile(config_path, loglevel=LogLevel.INFO)
     config.world_size = config.num_clients + 1
     config.replication_id = prefix
     federator_node = Federator('federator', 0,  config.world_size, config)
@@ -40,9 +41,10 @@ def retrieve_network_params_from_config(config: Config, nic=None, host=None):
 
 def run_remote(config_path: Path, rank: int, nic=None, host=None, prefix: str=None):
     print(config_path, rank)
-    config = Config.FromYamlFile(config_path)
+    config = Config.FromYamlFile(config_path, loglevel=LogLevel.INFO)
     config.world_size = config.num_clients + 1
     config.replication_id = prefix
+    config.rng_seed += int(config.replication_id)
     nic, host = retrieve_network_params_from_config(config, nic, host)
     if not nic or not host:
         print('Missing rank, host, world-size, or nic argument when in \'remote\' mode!')

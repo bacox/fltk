@@ -1,8 +1,10 @@
-# FLTK - Federation Learning Toolkit
-[![License](https://img.shields.io/badge/license-BSD-blue.svg)](LICENSE)
-[![Python 3.6](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
-[![Python 3.6](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/)
+# FLTK - Federated Learning Toolkit
 
+[![License](https://img.shields.io/badge/license-BSD-blue.svg)](LICENSE)
+[![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
+[![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/)
+
+![FLTK](resources/fltk.png)
 This repository contains the code and experiments for the paper:
 > [Aergia: leveraging heterogeneity in federated learning systems](https://dl.acm.org/doi/abs/10.1145/3528535.3565238)
 >
@@ -32,157 +34,191 @@ This toolkit is can be used to run Federated Learning experiments.
 Pytorch Distributed ([docs](https://pytorch.org/tutorials/beginner/dist_overview.html)) is used in this project.
 The goal if this project is to launch Federated Learning nodes in truly distribution fashion.
 
-This project is tested with Ubuntu 20.04 and python {3.7, 3.8}.
-### Global idea
-Pytorch distributed works based on a world_size and ranks. The ranks should be between 0 and world_size-1.
-Generally, the federator has rank 0 and the clients have ranks between 1 and world_size-1.
+FLTK is a research-oriented toolkit for designing and running **Federated Learning (FL)** experiments.
+It is built on top of **PyTorch Distributed** ([documentation](https://pytorch.org/tutorials/beginner/dist_overview.html)) and is designed to support *truly distributed* federated systems.
 
-General protocol:
+The toolkit has been tested on **Ubuntu 20.04** with **Python 3.7 and 3.8**.
+
+---
+
+## Design overview
+
+PyTorch Distributed operates using a **world size** and **process ranks**, where ranks range from `0` to `world_size - 1`.
+In FLTK:
+
+* Rank `0` is typically assigned to the **federator (server)**
+* Ranks `1` to `world_size - 1` correspond to **clients**
+
+### Federated learning protocol
+
+A typical FL round proceeds as follows:
 
 1. Client selection by the federator
-2. The selected clients download the model.
-2. Local training on the clients for X number of epochs
-3. Weights/gradients of the trained model are send to the federator
-4. Federator aggregates the weights/gradients to create a new and improved model
-5. Updated model is shared to the clients
-6. Repeat step 1 to 5 until convergence
+2. Selected clients download the current global model
+3. Local training on clients for a fixed number of epochs
+4. Clients send model updates (weights or gradients) to the federator
+5. The federator aggregates the updates to produce a new global model
+6. The updated model is redistributed to clients
+7. Steps 1–6 are repeated until convergence
 
-Important notes:
+### Key assumptions and constraints
 
-* Data between clients is not shared to each other
-* The data is non-IID
-* Hardware can heterogeneous
-* The location of devices matters (network latency and bandwidth)
-* Communication can be costly
+* Client data is **never shared**
+* Client data distributions are **non-IID**
+* Client hardware can be **heterogeneous**
+* Device location affects communication latency and bandwidth
+* Communication overhead can be significant
+
+---
 
 ## Project structure
-Structure with important folders and files explained:
+
+Overview of the main directories and files:
+
 ```
 project
 ├── experiments
-├── deploy                                    # Templates for automatic deployment  
-│     └── docker                              # Describes how a systems is deployed using docker containers
+├── deploy                                    # Templates for automatic deployment
+│     └── docker                              # Docker-based system deployment
 │          ├── stub_default.yml
-│          └── system_stub.yml                # Describes the federator and the network
+│          └── system_stub.yml                # Defines the federator and network
 ├── fltk                                      # Source code
-│     ├── core                                # Different dataset definitions
-│     ├── datasets                            # Different dataset definitions
-│     ├── nets                                # Available networks
-│     ├── samplers                            # Different types of data samplers to create non-IID distributions
-│     ├── schedulers                          # Learning Rate Schedulers
-│     ├── strategy                            # Client selection and model aggregation algorithms
-│     ├── util                                # Various utility functions
-│     ├── datasets                            # Different dataset definitions
-│     │    ├── data_distribution              # Datasets with distributed sampler
-│     │    └── distributed                    # "regular" datasets for centralized use
-│     └── __main__.py                         # Main package entrypoint
-├── Dockerfile                                # Dockerfile to run in containers
+│     ├── core                                # Core abstractions
+│     ├── datasets                            # Dataset definitions
+│     │    ├── data_distribution              # Distributed datasets and samplers
+│     │    └── distributed                    # Centralized dataset variants
+│     ├── nets                                # Model architectures
+│     ├── samplers                            # Non-IID data samplers
+│     ├── schedulers                          # Learning rate schedulers
+│     ├── strategy                            # Client selection and aggregation
+│     ├── util                                # Utility functions
+│     └── __main__.py                         # Package entry point
+├── Dockerfile                                # Container definition
 ├── LICENSE
 ├── README.md
 └── setup.py
 ```
 
+---
+
 ## Execution modes
-Federatd Learning experiments can be set up in various ways (Simulation, Emulation, or fully distributed). Not all have the same requirements and thus some setup are more suited then others depending on the experiment.
+
+FLTK supports multiple execution modes depending on experimental requirements.
 
 ### Simulation
-With the method as single machine is used to execute all the different nodes in the system.
-The execution is done in a sequential manner, i.e. first node 1 is executed, then node 2, and so on. One of the upsides of this option is the ability to use GPU acceleration for the computations.
 
-### Docker-Compose (Emulation)
-With systems like docker we can emulate a federated learning system on a single machine. Each node is allocated to one or more CPU cores and executed in an isolated container. This allows for real-time experiments where timing is important and where the execution of clients have effect on eachother. Docker also allows for containers to be limited by CPU speed, RAM, and network properties.
+All nodes (federator and clients) run on a **single machine** in a sequential manner.
+This mode is convenient for debugging and supports **GPU acceleration**, but does not capture real-time interaction effects.
 
-### Real distributed (Google Cloud)
-In this case, the code is deployed natively on a machine, for example a cluster. 
-This is the closest real-world approximation when experimenting with Federated Learning systems. This allows for real-time experiments where timing is important and where the execution of clients have effect on eachother. A downside of this method is the shear number of machines needed to run an experiment. Additionally the compute speed and other hardware spcifications are more difficult to limit.
+### Docker Compose (Emulation)
+
+Each node runs in its own Docker container, with configurable CPU, memory, and network constraints.
+This mode enables **real-time experiments** where client execution timing and resource contention matter, while remaining reproducible on a single machine.
+
+### Fully distributed (e.g., Google Cloud)
+
+Nodes are deployed natively across multiple physical or virtual machines.
+This mode most closely resembles real-world FL deployments, but requires substantial infrastructure and makes resource control more difficult.
 
 ### Hybrid
-The Docker (Compose) and real-distributed method can be mixed in a hybrid system. For example two servers can run a set of docker containers that are linked to each other. Similarly, a set of docker images on a server can participate in a system with real distributed machines. 
 
-## Models
+Docker-based emulation and native deployments can be combined.
+For example, multiple servers may each run several Docker containers that participate in a single federated system.
 
-* Cifar10-CNN
-* Cifar10-ResNet
-* Cifar100-ResNet
-* Cifar100-VGG
-* Fashion-MNIST-CNN
-* Fashion-MNIST-ResNet
-* Reddit-LSTM
-* Shakespeare-LSTM
+---
 
-## Datasets
+## Supported models
 
-* Cifar10
-* Cifar100
+* CIFAR-10 CNN
+* CIFAR-10 ResNet
+* CIFAR-100 ResNet
+* CIFAR-100 VGG
+* Fashion-MNIST CNN
+* Fashion-MNIST ResNet
+* Reddit LSTM
+* Shakespeare LSTM
+
+---
+
+## Supported datasets
+
+* CIFAR-10
+* CIFAR-100
 * Fashion-MNIST
 * MNIST
 * Shakespeare
 
+---
+
 ## Prerequisites
 
-When running in docker containers the following dependencies need to be installed:
+For Docker-based execution:
 
 * Docker
-* Docker-compose
+* Docker Compose
 
-## Install
+---
+
+## Installation
+
 ```bash
-python3 setup.py install
+python3 -m pip install -r requirements.txt
 ```
 
-### Load models
+### Load default models
+
 ```bash
-python3 fltk/util/default_models.py
+python3 -m fltk.util.default_models
 ```
+
+---
 
 ## Examples
-<details><summary>Show Examples</summary>
 
-<p>
+<details><summary>Show examples</summary>
 
-### Single machine (Native)
+### Docker Compose
 
-#### Launch single client
-Launch Federator
+**Note:** Ensure that `docker` and `docker compose` are installed.
+
+Generate Docker configuration:
+
+```bash
+python3 -m fltk util-generate experiments/example_docker/
+```
+
+Run an example experiment:
+
+```bash
+python3 -m fltk util-run experiments/example_docker/
+```
+
+---
+
+### Single machine (native)
+
+#### Launch federator
+
 ```bash
 python3 -m fltk single configs/experiment.yaml --rank=0
 ```
-Launch Client
+
+#### Launch client
+
 ```bash
 python3 -m fltk single configs/experiment.yaml --rank=1
 ```
 
-#### Spawn FL system
-```bash
-python3 -m fltk spawn configs/experiment.yaml
-```
-
-### Two machines (Native)
-To start a cross-machine FL system you have to configure the network interface connected to your network.
-For example, if your machine is connected to the network via the wifi interface (for example with the name `wlo1`) this has to be configured as shown below:
-```bash
-os.environ['GLOO_SOCKET_IFNAME'] = 'wlo1'
-os.environ['TP_SOCKET_IFNAME'] = 'wlo1'
-```
-Use `ifconfig` to find the name of the interface name on your machine.
-
-### Docker Compose
-1. Make sure docker and docker-compose are installed.
-2. Generate a `docker-compose.yml` file for your experiment. You can use the script `generate_docker_compose.py` for this.
-   From the root folder: ```python3 fltk/util/generate_docker_compose.py 4``` to generate a system with 4 clients.
-   Feel free to change/extend `generate_docker_compose.py` for your own need.
-   A `docker-compose.yml` file is created in the root folder.
-3. Run docker-compose to start the system:
-    ```bash
-    docker-compose up
-    ```
-### Google Cloud Platform
-See Manual on brightspace
-
-</p>
 </details>
+
+---
 
 ## Known issues
 
+<<<<<<< HEAD
+* GPU support is currently unavailable in Docker and Docker Compose
+* The first training epoch can be significantly slower (6×–8×)
+=======
 * Currently, there is no GPU support docker containers (or docker compose)
 * First epoch only can be slow (6x - 8x slower)
+>>>>>>> feeb1cfdfeea3a09c141d494ec9c184e758b73fa

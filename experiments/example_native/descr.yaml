@@ -1,7 +1,7 @@
 ---
 # Experiment configuration
-total_epochs: 3
-rounds: 5
+total_epochs: 1
+rounds: 3
 epochs_per_cycle: 1
 wait_for_clients: true
 net: MNISTCNN
@@ -17,7 +17,7 @@ node_groups:
   slow: [1, 1]
   medium: [2, 2]
   fast: [3, 3]
-sampler: "uniform" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (default)
+data_sampler: "n labels" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (default)
 sampler_args:
   - 0.07     # label limit || q probability || alpha || unused
   - 42    # random seed || random seed || random seed || unused

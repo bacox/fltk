@@ -6,7 +6,7 @@ from .cifar_10_resnet import Cifar10ResNet
 from .cifar_100_vgg import Cifar100VGG
 from .mnist_cnn import MNIST_CNN
 from .shakespeare_rnn import RNN_Shakespeare
-from ..util.definitions import Nets
+from fltk.util.definitions import Nets
 
 
 def available_nets():
@@ -36,5 +36,18 @@ def get_net_split_point(name: Nets):
         Nets.fashion_mnist_resnet: 7,
         Nets.mnist_cnn: 2,
         Nets.shakespeare_rnn: 2
+    }
+    return nets_split_point[name]
+
+def get_net_feature_layers_names(name: Nets):
+    nets_split_point = {
+        Nets.cifar100_resnet: [],
+        Nets.cifar100_vgg: [],
+        Nets.cifar10_cnn: ['conv1','bn1', 'conv2','bn2', 'conv3','bn3', 'conv4','bn4', 'conv5','bn5', 'conv6','bn6',],
+        Nets.cifar10_resnet: [],
+        Nets.fashion_mnist_cnn: ['layer1.0', 'layer1.1', 'layer1.1', 'layer2.0', 'layer2.1'],
+        Nets.fashion_mnist_resnet: [],
+        Nets.mnist_cnn: ['conv1', 'conv2'],
+        Nets.shakespeare_rnn: []
     }
     return nets_split_point[name]

@@ -10,10 +10,10 @@ class DistDataset:
 	test_dataset = None
 	train_loader = None
 	test_loader = None
-	logger = getLogger(__name__)
 
 	def __init__(self, args: Config):
 		self.args = args
+		self.logger = getLogger(__name__, args.log_level)
 		# self.train_dataset = self.load_train_dataset()
 		# self.test_dataset = self.load_test_dataset()
 

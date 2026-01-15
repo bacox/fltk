@@ -1,6 +1,6 @@
 import csv
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Union, List, Type
 from typing.io import TextIO
@@ -10,6 +10,11 @@ from typing.io import TextIO
 class DataRecord:
     pass
 
+@dataclass
+class EventRecord(DataRecord):
+    event: str
+    node_name: str = ''
+    timestamp: float = field(default_factory=time.time)
 
 @dataclass
 class FederatorRecord(DataRecord):
@@ -19,7 +24,7 @@ class FederatorRecord(DataRecord):
     test_loss: float
     test_accuracy: float
     # Accuracy per class?
-    timestamp: float = time.time()
+    timestamp: float = field(default_factory=time.time)
     node_name: str = ''
 
 
@@ -35,7 +40,7 @@ class ClientRecord(DataRecord):
     train_loss: float
     test_loss: float
     # Accuracy per class?
-    timestamp: float = time.time()
+    timestamp: float = field(default_factory=time.time)
     node_name: str = ''
 
 

@@ -10,11 +10,11 @@ from ..util.log import getLogger
 
 
 def get_sampler(dataset, args):
-    logger = getLogger(__name__)
+    logger = getLogger(__name__, args.log_level)
     sampler = None
     if args.get_distributed():
         method = args.get_sampler()
-        logger.debug(
+        logger.info(
             "Using {} sampler method, with args: {}".format(method, args.get_sampler_args()))
 
         if method == DataSampler.uniform:
