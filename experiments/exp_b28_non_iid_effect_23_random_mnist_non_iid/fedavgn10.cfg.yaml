@@ -1,9 +1,0 @@
-# Individual configuration
-deadline: 500
-single_machine: false
-real_time: true
-algorithm_name: 'vanilla'
-data_sampler: "n labels" # "limit labels" || "q sampler" || "dirichlet" || "uniform" (default)
-data_sampler_args:
-  - 10     # label limit || q probability || alpha || unused
-  - 42    # random seed || random seed || random seed || unused

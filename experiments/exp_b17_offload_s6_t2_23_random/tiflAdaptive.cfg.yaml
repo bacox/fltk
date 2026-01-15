@@ -1,7 +1,0 @@
-# Individual configuration
-deadline: 500
-single_machine: false
-real_time: true
-algorithm_name: 'tifl'
-tifl_I: 2
-tifl_n_tiers: 2
