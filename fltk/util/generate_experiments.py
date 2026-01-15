@@ -110,7 +110,7 @@ def run(base_path: Path):
 
         for exp_cfg_file in exp_files:
             for replication_id in range(replications):
-                cmd = f'export OPTIONAL_PARAMS="--prefix={replication_id}";export EXP_CONFIG_FILE="{exp_cfg_file}"; docker-compose --compatibility up {first_prefix};'
+                cmd = f'export OPTIONAL_PARAMS="--prefix={replication_id}";export EXP_CONFIG_FILE="{exp_cfg_file}"; docker compose --compatibility up {first_prefix};'
                 cmd_list.append([replication_id, cmd])
                 first_prefix = ''
     else:
